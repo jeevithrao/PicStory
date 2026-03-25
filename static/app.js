@@ -83,6 +83,13 @@ function goToStep(n) {
     line.classList.toggle('done', i < n);
   });
   window.scrollTo({ top: 0, behavior: 'smooth' });
+
+  // Trigger music init when navigating to step 3
+  if (n === 3) {
+    if (!$('#step-3-content .audio-player')) {
+        initMusicStep();
+    }
+  }
 }
 
 // ---- Step 0: Mode Selection ----
@@ -681,10 +688,3 @@ document.addEventListener('DOMContentLoaded', () => {
 
   goToStep(0);
 });
-
-// Make goToStep trigger music init
-const _origGoToStep = goToStep;
-goToStep = function(n) {
-  _origGoToStep(n);
-  if (n === 3) initMusicStep();
-};
