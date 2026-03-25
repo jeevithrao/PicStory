@@ -1,16 +1,22 @@
 # app/services/model_manager.py
-# Manages GPU model loading and unloading.
-# CRITICAL: Only ONE model loaded at a time due to 4GB VRAM constraint.
-# Always call unload_all() before loading a new model.
+# Manages model loading and unloading.
+# Auto-detects CUDA GPU; falls back to CPU if unavailable.
+# Only ONE large model loaded at a time to conserve memory.
 
 import gc
 
-# Try importing torch — may not be available in all environments
+# Try importing torch
 try:
     import torch
     TORCH_AVAILABLE = True
+    DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+    DTYPE = torch.float16 if DEVICE == "cuda" else torch.float32
 except ImportError:
     TORCH_AVAILABLE = False
+    DEVICE = "cpu"
+    DTYPE = None
+
+print(f"🖥️  Model device: {DEVICE}")
 
 # Global model references (only one should be non-None at any time)
 _sd_pipeline   = None   # Stable Diffusion
@@ -33,24 +39,25 @@ def _clear_gpu():
 # ---------------------------------------------------------------------------
 
 def load_stable_diffusion():
-    """Load SD 1.5 with float16 + attention slicing for 4GB VRAM."""
+    """Load SD 1.5. Uses GPU with float16 if available, else CPU with float32."""
     global _sd_pipeline
     if _sd_pipeline is not None:
         return _sd_pipeline
 
-    unload_all()  # Safety: free anything currently loaded
+    unload_all()
 
     from diffusers import StableDiffusionPipeline
     import torch
 
     _sd_pipeline = StableDiffusionPipeline.from_pretrained(
         "runwayml/stable-diffusion-v1-5",
-        torch_dtype=torch.float16,
-        safety_checker=None,        # Disabled for performance
+        torch_dtype=DTYPE,
+        safety_checker=None,
     )
-    _sd_pipeline = _sd_pipeline.to("cuda")
-    _sd_pipeline.enable_attention_slicing()  # Reduces VRAM usage
-    print("✅ Stable Diffusion loaded on GPU.")
+    _sd_pipeline = _sd_pipeline.to(DEVICE)
+    if DEVICE == "cuda":
+        _sd_pipeline.enable_attention_slicing()
+    print(f"✅ Stable Diffusion loaded on {DEVICE.upper()}.")
     return _sd_pipeline
 
 
@@ -81,9 +88,9 @@ def load_blip():
     _blip_processor = BlipProcessor.from_pretrained("Salesforce/blip-image-captioning-base")
     _blip_model = BlipForConditionalGeneration.from_pretrained(
         "Salesforce/blip-image-captioning-base",
-        torch_dtype=torch.float16,
-    ).to("cuda")
-    print("✅ BLIP loaded on GPU.")
+        torch_dtype=DTYPE,
+    ).to(DEVICE)
+    print(f"✅ BLIP loaded on {DEVICE.upper()}.")
     return _blip_model, _blip_processor
 
 
@@ -103,7 +110,7 @@ def unload_blip():
 # ---------------------------------------------------------------------------
 
 def load_musicgen():
-    """Load MusicGen small (fits in 4GB)."""
+    """Load MusicGen small."""
     global _musicgen
     if _musicgen is not None:
         return _musicgen
@@ -113,11 +120,11 @@ def load_musicgen():
     from transformers import MusicgenForConditionalGeneration, AutoProcessor
     import torch
 
-    processor  = AutoProcessor.from_pretrained("facebook/musicgen-small")
-    model      = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
-    model      = model.to("cuda")
-    _musicgen  = (model, processor)
-    print("✅ MusicGen loaded on GPU.")
+    processor = AutoProcessor.from_pretrained("facebook/musicgen-small")
+    model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
+    model = model.to(DEVICE)
+    _musicgen = (model, processor)
+    print(f"✅ MusicGen loaded on {DEVICE.upper()}.")
     return _musicgen
 
 

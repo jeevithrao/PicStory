@@ -1,5 +1,6 @@
 # app/api/routes/video.py  — POST /video
-# Assembles final MP4 from images + narration + music using MoviePy/FFmpeg.
+# Assembles final MP4 from images + per-image narration segments + music
+# using MoviePy/FFmpeg. Each image stays on screen for the duration of its narration.
 
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import VideoRequest, VideoResponse
@@ -30,14 +31,20 @@ async def assemble_video(body: VideoRequest):
 
     output_dir = file_service.get_project_output_dir(body.project_id)
 
-    # --- Call teammate's video assembly module ---
+    # Check for per-image narration segments
+    voiceover_segments = None
+    if body.per_image_narrations:
+        voiceover_segments = body.per_image_narrations
+
+    # --- Call video assembly module ---
     try:
         from ai.video import assemble_video as build_video
         video_path = build_video(
             images=image_paths,
-            voiceover=narration["narration_path"],
+            voiceover=narration["narration_path"] if not voiceover_segments else None,
             music=body.music_path,
             output_dir=output_dir,
+            voiceover_segments=voiceover_segments,
         )
     except Exception as e:
         db_service.update_project_status(body.project_id, "error")

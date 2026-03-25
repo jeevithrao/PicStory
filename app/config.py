@@ -24,30 +24,30 @@ class Settings:
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "outputs")
     MAX_IMAGES:  int = int(os.getenv("MAX_IMAGES_PER_ZIP", 20))
 
-    # Supported Indian language codes (ISO 639-1 / BCP-47)
+    # 22 Scheduled Indian languages
     SUPPORTED_LANGUAGES: list = [
+        "hi",   # Hindi
+        "kok",  # Konkani
+        "kn",   # Kannada
+        "doi",  # Dogri
+        "brx",  # Bodo
+        "ur",   # Urdu
+        "ta",   # Tamil
+        "ks",   # Kashmiri
         "as",   # Assamese
         "bn",   # Bengali
-        "gu",   # Gujarati
-        "hi",   # Hindi
-        "kn",   # Kannada
-        "ks",   # Kashmiri
-        "kok",  # Konkani
+        "mr",   # Marathi
+        "sd",   # Sindhi
         "mai",  # Maithili
+        "pa",   # Punjabi
         "ml",   # Malayalam
         "mni",  # Manipuri
-        "mr",   # Marathi
-        "ne",   # Nepali
-        "or",   # Odia
-        "pa",   # Punjabi
-        "sa",   # Sanskrit
-        "sat",  # Santali
-        "sd",   # Sindhi
-        "si",   # Sinhala
-        "ta",   # Tamil
         "te",   # Telugu
-        "ur",   # Urdu
-        "brx",  # Bodo
+        "sa",   # Sanskrit
+        "ne",   # Nepali
+        "sat",  # Santali
+        "gu",   # Gujarati
+        "or",   # Odia
     ]
 
 settings = Settings()

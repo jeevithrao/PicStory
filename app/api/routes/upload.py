@@ -1,5 +1,6 @@
 # app/api/routes/upload.py  — POST /upload
 # Accepts a ZIP file, extracts images, saves to DB, returns project_id.
+import os
 
 from fastapi import APIRouter, UploadFile, File, HTTPException, Form
 from app.models.schemas import UploadResponse
@@ -11,6 +12,7 @@ router = APIRouter()
 async def upload_zip(
     file: UploadFile = File(...),
     language: str = Form(default="hi"),   # Default: Hindi
+    context: str = Form(default=""),      # User-provided context for captioning
 ):
     # Validate file type
     if not file.filename.endswith(".zip"):
@@ -19,7 +21,7 @@ async def upload_zip(
     zip_bytes = await file.read()
 
     # Create project record in DB first (get a project_id)
-    project_id = db_service.create_project(mode="upload", language=language)
+    project_id = db_service.create_project(mode="upload", language=language, context=context)
 
     # Extract images from ZIP
     try:
@@ -31,7 +33,7 @@ async def upload_zip(
 
     # Save image records to DB
     filenames = [file_service.relative_path(p) for p in image_paths]
-    db_service.save_images(project_id, [p.split("/")[-1] for p in image_paths])
+    db_service.save_images(project_id, [os.path.basename(p) for p in image_paths])
     db_service.update_project_status(project_id, "uploaded")
 
     return UploadResponse(

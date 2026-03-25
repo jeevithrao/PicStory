@@ -23,7 +23,7 @@ def mock_db(monkeypatch):
     monkeypatch.setattr("app.services.db_service.save_music",       lambda *a: None)
     monkeypatch.setattr("app.services.db_service.save_output",      lambda *a: None)
     monkeypatch.setattr("app.services.db_service.get_output",       lambda pid: None)
-    monkeypatch.setattr("app.services.db_service.apply_image_edits",lambda *a: None)
+    monkeypatch.setattr("app.services.db_service.apply_image_edits",lambda *a, **kw: None)
 
 
 @pytest.fixture

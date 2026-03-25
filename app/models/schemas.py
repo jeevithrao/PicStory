@@ -50,17 +50,19 @@ class CaptionResponse(BaseModel):
 # ---------------------------------------------------------------------------
 class MusicRequest(BaseModel):
     project_id: str
-    vibe:       str   # calm | romantic | rock | happy | sad | motivational
-    source:     str   # ai | library
+    vibe:       Optional[str] = None   # Optional — Gemini picks if not set
+    source:     Optional[str] = "ai"   # ai | library
 
 class TrackSuggestion(BaseModel):
     name: str
     path: str
+    vibe: str     # which vibe this alternative represents
 
 class MusicResponse(BaseModel):
-    project_id:  str
-    music_path:  str
-    suggestions: List[TrackSuggestion]
+    project_id:        str
+    music_path:        str
+    suggestions:       List[TrackSuggestion]
+    ai_suggested_vibe: str    # what Gemini chose
 
 
 # ---------------------------------------------------------------------------
@@ -71,9 +73,10 @@ class NarrationRequest(BaseModel):
     language:   str
 
 class NarrationResponse(BaseModel):
-    project_id:      str
-    narration_text:  str
-    narration_path:  str
+    project_id:           str
+    narration_text:       str
+    narration_path:       Optional[str] = None
+    per_image_narrations: Optional[List[dict]] = None  # [{path, duration, text}]
 
 
 # ---------------------------------------------------------------------------
@@ -94,8 +97,9 @@ class EditResponse(BaseModel):
 # /video
 # ---------------------------------------------------------------------------
 class VideoRequest(BaseModel):
-    project_id: str
-    music_path: str
+    project_id:           str
+    music_path:           str
+    per_image_narrations: Optional[List[dict]] = None  # [{path, duration}]
 
 class VideoResponse(BaseModel):
     project_id: str

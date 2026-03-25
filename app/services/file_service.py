@@ -96,5 +96,5 @@ def list_project_images(project_id: str) -> list[str]:
 
 
 def relative_path(absolute_path: str) -> str:
-    """Convert absolute path to a relative path for API responses."""
-    return os.path.relpath(absolute_path)
+    """Convert absolute path to a URL-safe relative path (always forward slashes)."""
+    return os.path.relpath(absolute_path).replace("\\", "/")

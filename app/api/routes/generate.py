@@ -1,5 +1,6 @@
 # app/api/routes/generate.py  — POST /generate  (Mode 2 only)
 # Translates prompt → English, generates images via Stable Diffusion 1.5.
+import os
 
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import GenerateRequest, GenerateResponse
@@ -45,7 +46,7 @@ async def generate_images(body: GenerateRequest):
         db_service.update_project_status(project_id, "error")
         raise HTTPException(status_code=500, detail=f"Image generation failed: {str(e)}")
 
-    filenames = [p.split("/")[-1] for p in image_paths]
+    filenames = [os.path.basename(p) for p in image_paths]
     db_service.save_images(project_id, filenames)
     db_service.update_project_status(project_id, "uploaded")
 

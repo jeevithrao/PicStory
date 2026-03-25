@@ -45,12 +45,33 @@ app.add_middleware(
 )
 
 
+from fastapi.responses import FileResponse
+import os
+
 # ---------------------------------------------------------------------------
-# Health check — GET /
+# Frontend — GET /
 # ---------------------------------------------------------------------------
-@app.get("/", tags=["Health"])
-async def health_check():
-    return {"status": "ok", "version": "2.0.0"}
+@app.get("/", tags=["Frontend"])
+async def serve_frontend():
+    index_path = os.path.join(os.getcwd(), "static", "index.html")
+    if os.path.exists(index_path):
+        return FileResponse(index_path)
+    return {"status": "ok", "message": "PicStory frontend not found."}
+
+
+# Global exception handler — show actual error details (dev mode)
+from fastapi import Request
+from fastapi.responses import JSONResponse
+import traceback
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    tb = traceback.format_exc()
+    print(f"❌ Unhandled error on {request.method} {request.url.path}:\n{tb}")
+    return JSONResponse(
+        status_code=500,
+        content={"detail": str(exc), "type": type(exc).__name__}
+    )
 
 
 # ---------------------------------------------------------------------------

@@ -1,12 +1,112 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>PicStory — AI Video Generator</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="PicStory — AI-powered video storytelling from your photos in 22 Indian languages">
+  <title>PicStory — AI Video Generator</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-    <h1>PicStory Frontend</h1>
-    <p>Backend is running. Frontend team: place your index.html here.</p>
-    <p>API docs: <a href="/docs">/docs</a></p>
+
+<div class="app-container">
+
+  <!-- Header -->
+  <header class="app-header">
+    <h1>✨ PicStory</h1>
+    <p>AI-powered video storytelling · 22 Indian languages</p>
+  </header>
+
+  <!-- Step Bar -->
+  <nav class="step-bar">
+    <div class="step-dot active">1</div><div class="step-line"></div>
+    <div class="step-dot">2</div><div class="step-line"></div>
+    <div class="step-dot">3</div><div class="step-line"></div>
+    <div class="step-dot">4</div><div class="step-line"></div>
+    <div class="step-dot">5</div><div class="step-line"></div>
+    <div class="step-dot">6</div><div class="step-line"></div>
+    <div class="step-dot">7</div><div class="step-line"></div>
+    <div class="step-dot">8</div>
+  </nav>
+
+  <!-- Step 0: Mode Selection -->
+  <section class="step-section active" id="step-0">
+    <div class="card">
+      <h2 class="card-title">Choose Your Mode</h2>
+      <p class="card-subtitle">How would you like to start?</p>
+      <div class="mode-grid">
+        <div class="mode-card" data-mode="upload">
+          <div class="icon">📸</div>
+          <h3>Upload Photos</h3>
+          <p>Upload a ZIP of your own photos and turn them into a narrated video</p>
+        </div>
+        <div class="mode-card" data-mode="awareness">
+          <div class="icon">🧠</div>
+          <h3>Awareness Topic</h3>
+          <p>Type a topic in any Indian language — AI generates the images for you</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Step 1: Input -->
+  <section class="step-section" id="step-1">
+    <div class="card">
+      <h2 class="card-title">Provide Your Content</h2>
+      <div id="step-1-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 2: Captioning -->
+  <section class="step-section" id="step-2">
+    <div class="card">
+      <h2 class="card-title">Image Captioning</h2>
+      <div id="step-2-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 3: Music -->
+  <section class="step-section" id="step-3">
+    <div class="card">
+      <h2 class="card-title">Background Music</h2>
+      <div id="step-3-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 4: Narration -->
+  <section class="step-section" id="step-4">
+    <div class="card">
+      <h2 class="card-title">Narration</h2>
+      <div id="step-4-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 5: Editor -->
+  <section class="step-section" id="step-5">
+    <div class="card">
+      <h2 class="card-title">Image Editor</h2>
+      <div id="step-5-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 6: Assembly -->
+  <section class="step-section" id="step-6">
+    <div class="card">
+      <h2 class="card-title">Video Assembly</h2>
+      <div id="step-6-content"></div>
+    </div>
+  </section>
+
+  <!-- Step 7: Output -->
+  <section class="step-section" id="step-7">
+    <div class="card">
+      <h2 class="card-title">Your Video is Ready!</h2>
+      <div id="step-7-content"></div>
+    </div>
+  </section>
+
+</div>
+
+<script src="/static/app.js"></script>
 </body>
 </html>

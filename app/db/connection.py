@@ -55,6 +55,7 @@ def init_db():
             id          VARCHAR(64)  NOT NULL,
             mode        VARCHAR(10)  NOT NULL COMMENT 'upload | awareness',
             prompt      TEXT                  COMMENT 'Mode 2 prompt (nullable)',
+            context     TEXT                  COMMENT 'User-provided context for captioning (optional)',
             language    VARCHAR(10)  NOT NULL,
             status      VARCHAR(30)  NOT NULL DEFAULT 'uploaded',
             created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
