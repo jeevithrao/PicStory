@@ -46,16 +46,17 @@ def generate_captions(image_paths: list[str], language: str = "en", context: str
 
 def _enhance_captions_with_gemini(
     raw_captions: list[str],
-    language: str = "en",
+    language: str = "English",
     context: str = "",
 ) -> list[str]:
     """
     Pass each raw BLIP caption through Gemini for vivid emotional expansion.
     Outputs directly in the target language (no separate translation needed).
     If context is provided, Gemini uses it to guide the descriptions.
+    Uses the new google.genai SDK.
     """
     try:
-        import google.generativeai as genai
+        from google import genai
         from app.config import settings
 
         api_key = settings.GEMINI_API_KEY
@@ -63,18 +64,20 @@ def _enhance_captions_with_gemini(
             print("⚠️  No Gemini key — returning raw BLIP captions")
             return raw_captions
 
-        genai.configure(api_key=api_key)
-        model = genai.GenerativeModel("gemini-2.0-flash")
+        client = genai.Client(api_key=api_key)
 
-        lang_name = LANG_NAMES.get(language, "English")
+        # The language parameter comes as a display name (e.g. "Hindi", "Tamil")
+        # If it's a short code, resolve it; otherwise use it directly.
+        lang_name = LANG_NAMES.get(language, language)  # "Hindi" → "Hindi", "hi" → "Hindi"
+
         numbered = "\n".join(f"{i+1}. {c}" for i, c in enumerate(raw_captions))
 
         # Build context instruction
         context_instruction = ""
         if context and context.strip():
             context_instruction = f"""
-The user has provided this context about the images: "{context.strip()}"
-Use this context to guide your descriptions — weave it into the emotional narrative naturally.
+IMPORTANT CONTEXT: The user says these images are about: "{context.strip()}"
+You MUST use this context to guide and enrich your descriptions. Weave it into the emotional narrative naturally.
 """
 
         prompt = f"""You are a poetic visual storyteller. I will give you plain image descriptions.
@@ -85,7 +88,7 @@ Plain descriptions:
 {numbered}
 
 Rules:
-- Write ALL descriptions in {lang_name} language.
+- Write ALL descriptions ENTIRELY in {lang_name} language. Every word must be in {lang_name}.
 - Output ONLY the rewritten descriptions, one per line, numbered the same way.
 - Do NOT add headers, explanations, or markdown.
 - Keep them concise but evocative (max 2 sentences each).
@@ -96,16 +99,22 @@ Input: "a group of people standing near a building"
 Output: "A gathering of loved ones stands bathed in golden light, their laughter echoing off weathered stone walls — a moment frozen between hello and goodbye."
 """
 
-        response = model.generate_content(prompt)
+        print(f"🧠 Gemini captioning: language={lang_name}, context='{context[:60]}...'")
+        response = client.models.generate_content(
+            model="gemini-1.5-flash",
+            contents=prompt,
+        )
         lines = [l.strip() for l in response.text.strip().split("\n") if l.strip()]
 
+        import re
         enhanced = []
         for line in lines:
             # Strip numbering like "1. " or "1) "
-            import re
-            cleaned = re.sub(r'^\d+[\.\)]\s*', '', line)
+            cleaned = re.sub(r'^\d+[\.\\)]\s*', '', line)
             if cleaned:
                 enhanced.append(cleaned)
+
+        print(f"✅ Gemini returned {len(enhanced)} enhanced captions")
 
         # Ensure same count — pad with originals if Gemini returned fewer
         if len(enhanced) >= len(raw_captions):
@@ -114,5 +123,7 @@ Output: "A gathering of loved ones stands bathed in golden light, their laughter
             return enhanced + raw_captions[len(enhanced):]
 
     except Exception as e:
+        import traceback
         print(f"⚠️  Gemini enhancement failed: {e}")
+        traceback.print_exc()
         return raw_captions

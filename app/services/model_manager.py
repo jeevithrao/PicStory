@@ -19,7 +19,6 @@ except ImportError:
 print(f"🖥️  Model device: {DEVICE}")
 
 # Global model references (only one should be non-None at any time)
-_sd_pipeline   = None   # Stable Diffusion
 _blip_model    = None   # BLIP captioning model
 _blip_processor= None
 _musicgen      = None   # MusicGen
@@ -32,42 +31,6 @@ def _clear_gpu():
         if torch.cuda.is_available():
             torch.cuda.empty_cache()
             torch.cuda.ipc_collect()
-
-
-# ---------------------------------------------------------------------------
-# Stable Diffusion 1.5
-# ---------------------------------------------------------------------------
-
-def load_stable_diffusion():
-    """Load SD 1.5. Uses GPU with float16 if available, else CPU with float32."""
-    global _sd_pipeline
-    if _sd_pipeline is not None:
-        return _sd_pipeline
-
-    unload_all()
-
-    from diffusers import StableDiffusionPipeline
-    import torch
-
-    _sd_pipeline = StableDiffusionPipeline.from_pretrained(
-        "runwayml/stable-diffusion-v1-5",
-        torch_dtype=DTYPE,
-        safety_checker=None,
-    )
-    _sd_pipeline = _sd_pipeline.to(DEVICE)
-    if DEVICE == "cuda":
-        _sd_pipeline.enable_attention_slicing()
-    print(f"✅ Stable Diffusion loaded on {DEVICE.upper()}.")
-    return _sd_pipeline
-
-
-def unload_stable_diffusion():
-    global _sd_pipeline
-    if _sd_pipeline is not None:
-        del _sd_pipeline
-        _sd_pipeline = None
-        _clear_gpu()
-        print("🗑️  Stable Diffusion unloaded.")
 
 
 # ---------------------------------------------------------------------------
@@ -142,6 +105,5 @@ def unload_musicgen():
 # ---------------------------------------------------------------------------
 
 def unload_all():
-    unload_stable_diffusion()
     unload_blip()
     unload_musicgen()

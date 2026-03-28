@@ -22,7 +22,7 @@ class Settings:
     # File Storage
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "outputs")
-    MAX_IMAGES:  int = int(os.getenv("MAX_IMAGES_PER_ZIP", 20))
+    MAX_IMAGES:  int = int(os.getenv("MAX_IMAGES_PER_ZIP", 8))
 
     # 22 Scheduled Indian languages
     SUPPORTED_LANGUAGES: list = [

@@ -7,8 +7,10 @@ import os
 import asyncio
 import edge_tts
 
-# Mapping of our language codes → Edge TTS voice names
+# Mapping of language codes AND display names → Edge TTS voice names
 EDGE_TTS_VOICES = {
+    # Short codes
+    "en":  "en-US-AriaNeural",
     "hi":  "hi-IN-SwaraNeural",
     "bn":  "bn-IN-TanishaaNeural",
     "ta":  "ta-IN-PallaviNeural",
@@ -22,16 +24,39 @@ EDGE_TTS_VOICES = {
     "as":  "as-IN-PriyomNeural",
     "or":  "or-IN-SubhasiniNeural",
     "ne":  "ne-NP-HemkalaNeural",
-    "sd":  "sd-IN-SwaraNeural",           # Sindhi — falls back to Hindi voice
-    "sa":  "hi-IN-SwaraNeural",           # Sanskrit — no dedicated voice, use Hindi
-    "ks":  "hi-IN-SwaraNeural",           # Kashmiri — use Hindi fallback
-    "kok": "hi-IN-SwaraNeural",           # Konkani — use Hindi fallback
-    "mai": "hi-IN-SwaraNeural",           # Maithili — use Hindi fallback
-    "mni": "hi-IN-SwaraNeural",           # Manipuri — use Hindi fallback
-    "sat": "hi-IN-SwaraNeural",           # Santali — use Hindi fallback
-    "brx": "hi-IN-SwaraNeural",           # Bodo — use Hindi fallback
-    "doi": "hi-IN-SwaraNeural",           # Dogri — use Hindi fallback
-    # Languages without a dedicated Edge TTS voice use Hindi
+    "sd":  "sd-IN-SwaraNeural",
+    "sa":  "hi-IN-SwaraNeural",
+    "ks":  "hi-IN-SwaraNeural",
+    "kok": "hi-IN-SwaraNeural",
+    "mai": "hi-IN-SwaraNeural",
+    "mni": "hi-IN-SwaraNeural",
+    "sat": "hi-IN-SwaraNeural",
+    "brx": "hi-IN-SwaraNeural",
+    "doi": "hi-IN-SwaraNeural",
+    # Display names (sent by the frontend)
+    "English":    "en-US-AriaNeural",
+    "Hindi":      "hi-IN-SwaraNeural",
+    "Bengali":    "bn-IN-TanishaaNeural",
+    "Tamil":      "ta-IN-PallaviNeural",
+    "Telugu":     "te-IN-ShrutiNeural",
+    "Marathi":    "mr-IN-AarohiNeural",
+    "Gujarati":   "gu-IN-DhwaniNeural",
+    "Kannada":    "kn-IN-SapnaNeural",
+    "Malayalam":  "ml-IN-SobhanaNeural",
+    "Punjabi":    "pa-IN-GurpreetNeural",
+    "Urdu":       "ur-PK-UzmaNeural",
+    "Assamese":   "as-IN-PriyomNeural",
+    "Odia":       "or-IN-SubhasiniNeural",
+    "Nepali":     "ne-NP-HemkalaNeural",
+    "Sindhi":     "sd-IN-SwaraNeural",
+    "Sanskrit":   "hi-IN-SwaraNeural",
+    "Kashmiri":   "hi-IN-SwaraNeural",
+    "Konkani":    "hi-IN-SwaraNeural",
+    "Maithili":   "hi-IN-SwaraNeural",
+    "Manipuri":   "hi-IN-SwaraNeural",
+    "Santali":    "hi-IN-SwaraNeural",
+    "Bodo":       "hi-IN-SwaraNeural",
+    "Dogri":      "hi-IN-SwaraNeural",
 }
 
 # Mood prompts for MusicGen

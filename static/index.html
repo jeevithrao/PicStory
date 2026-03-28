@@ -1,112 +1,727 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <meta name="description" content="PicStory — AI-powered video storytelling from your photos in 22 Indian languages">
-  <title>PicStory — AI Video Generator</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>PicStory – Narrate Your Moments</title>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;900&family=Raleway:wght@300;400;500;600;700&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --bg-deep:       #0a0520;
+      --bg-mid:        #120a35;
+      --bg-card:       rgba(255,255,255,0.04);
+      --border:        rgba(130,80,255,0.35);
+      --accent:        #7b3fe4;
+      --accent-bright: #a855f7;
+      --accent-glow:   #c084fc;
+      --text-main:     #e9d5ff;
+      --text-dim:      #a78bfa;
+      --text-white:    #ffffff;
+      --gold:          #fbbf24;
+      --success:       #34d399;
+      --error:         #f87171;
+    }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Raleway', sans-serif;
+      background: var(--bg-deep);
+      color: var(--text-main);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed; inset: 0; z-index: 0;
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(123,63,228,.28) 0%, transparent 70%),
+        radial-gradient(ellipse 50% 40% at 80% 80%, rgba(88,28,220,.18) 0%, transparent 60%);
+      pointer-events: none;
+    }
+
+    .page { display: none; position: relative; z-index: 1; }
+    .page.active { display: block; }
+
+    /* ═══ NAVBAR ═══ */
+    nav {
+      position: sticky; top: 0; z-index: 100;
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 14px 24px;
+      background: rgba(10,5,32,.85);
+      backdrop-filter: blur(18px);
+      border-bottom: 1px solid var(--border);
+    }
+    .logo {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.1rem, 3vw, 1.5rem);
+      font-weight: 900;
+      background: linear-gradient(135deg, #a855f7, #e879f9, #fbbf24);
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      letter-spacing: 2px;
+    }
+    .nav-btn {
+      font-family: 'Raleway', sans-serif;
+      font-size: .85rem; font-weight: 600;
+      color: var(--text-main); background: none;
+      border: 1.5px solid var(--accent-bright);
+      border-radius: 20px; padding: 7px 18px;
+      cursor: pointer; transition: all .25s ease;
+    }
+    .nav-btn:hover { background: var(--accent-bright); color: #fff; box-shadow: 0 0 18px rgba(168,85,247,.6); }
+
+    /* ═══ HERO ═══ */
+    .hero {
+      text-align: center;
+      padding: clamp(36px, 7vw, 64px) 20px clamp(24px, 5vw, 40px);
+    }
+    .hero-tagline {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1.05rem, 4.5vw, 2rem);
+      font-weight: 900; color: var(--text-white);
+      line-height: 1.25; letter-spacing: 1.5px;
+      text-transform: uppercase; margin-bottom: 16px;
+    }
+    .hero-sub {
+      font-size: clamp(.8rem, 2.5vw, .98rem);
+      color: var(--text-dim);
+      max-width: 360px; margin: 0 auto 10px; line-height: 1.6;
+    }
+    .hero-pill {
+      display: inline-block;
+      font-size: .8rem; font-weight: 600; letter-spacing: 2px;
+      color: var(--accent-glow); margin-bottom: 28px;
+      text-transform: uppercase;
+    }
+
+    /* Steps row */
+    .steps {
+      display: flex; justify-content: center; flex-wrap: wrap;
+      gap: 12px 6px; max-width: 480px; margin: 0 auto;
+    }
+    .step { display: flex; flex-direction: column; align-items: center; gap: 6px; width: 64px; }
+    .step-num {
+      width: 28px; height: 28px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-bright));
+      display: flex; align-items: center; justify-content: center;
+      font-family: 'Cinzel', serif;
+      box-shadow: 0 0 10px rgba(168,85,247,.5);
+    }
+    .step-label { font-size: .62rem; color: var(--text-dim); text-align: center; line-height: 1.3; }
+
+    /* ═══ SECTION ═══ */
+    .section-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(.95rem, 3vw, 1.25rem);
+      font-weight: 700; text-align: center;
+      color: var(--text-white); letter-spacing: 2px;
+      text-transform: uppercase; margin: 28px 0 18px;
+    }
+    .container { max-width: 520px; margin: 0 auto; padding: 0 16px 40px; }
+
+    /* Upload + Prompt Grid */
+    .input-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-bottom: 20px; }
+    .card {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      padding: 18px 14px;
+      display: flex; flex-direction: column; align-items: center; gap: 10px;
+      cursor: pointer; transition: all .3s ease;
+      position: relative; overflow: hidden;
+    }
+    .card::before {
+      content: ''; position: absolute; inset: 0;
+      background: radial-gradient(circle at 50% 0%, rgba(168,85,247,.12) 0%, transparent 70%);
+      opacity: 0; transition: opacity .3s;
+      pointer-events: none;
+    }
+    .card:hover { border-color: var(--accent-bright); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(123,63,228,.3); }
+    .card:hover::before { opacity: 1; }
+    .card-icon { font-size: 2rem; filter: drop-shadow(0 0 8px rgba(168,85,247,.6)); }
+    .card-label { font-size: .75rem; font-weight: 500; color: var(--text-dim); text-align: center; }
+    #zipInput { display: none; }
+    .zip-name { font-size: .68rem; color: var(--success); text-align: center; word-break: break-all; max-height: 32px; overflow: hidden; }
+
+    .prompt-textarea {
+      width: 100%; height: 80px;
+      background: transparent; border: none; outline: none; resize: none;
+      font-family: 'Raleway', sans-serif; line-height: 1.5;
+      color: var(--text-main); caret-color: var(--accent-glow); cursor: text;
+    }
+    .prompt-textarea::placeholder { color: rgba(167,139,250,.45); }
+
+    .section-box {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      padding: 16px 14px; margin-bottom: 16px;
+    }
+    .section-box-title {
+      font-size: .78rem; font-weight: 600;
+      color: var(--text-dim); letter-spacing: 1px;
+      text-transform: uppercase; margin-bottom: 12px;
+    }
+    .pill-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+    .pill {
+      font-family: 'Raleway', sans-serif;
+      font-size: .72rem; font-weight: 500;
+      padding: 6px 13px; border-radius: 20px;
+      border: 1.5px solid var(--border); background: transparent;
+      color: var(--text-main); cursor: pointer;
+      transition: all .22s ease; user-select: none;
+    }
+    .pill:hover { border-color: var(--accent-bright); color: var(--accent-glow); box-shadow: 0 0 12px rgba(168,85,247,.35); }
+    .pill.selected { background: linear-gradient(135deg, var(--accent), var(--accent-bright)); border-color: var(--accent-bright); color: #fff; box-shadow: 0 0 16px rgba(168,85,247,.55); }
+
+    .action-btn {
+      display: block; width: 100%;
+      font-family: 'Cinzel', serif; font-weight: 700; letter-spacing: 2px;
+      text-transform: uppercase; padding: 16px; border-radius: 12px;
+      border: none; cursor: pointer; margin-bottom: 14px;
+      position: relative; overflow: hidden; transition: all .3s ease;
+    }
+    .btn-primary {
+      background: linear-gradient(135deg, #7b3fe4 0%, #a855f7 50%, #e879f9 100%);
+      color: #fff; box-shadow: 0 4px 24px rgba(123,63,228,.5);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 36px rgba(168,85,247,.7); transform: translateY(-3px); }
+
+    /* Context textarea — OUTSIDE the label */
+    .context-box {
+      background: var(--bg-card);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      padding: 14px; margin-bottom: 16px;
+    }
+    .context-box-title {
+      font-size: .72rem; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;
+    }
+    .context-textarea {
+      width: 100%; height: 56px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(130,80,255,0.3); border-radius: 8px;
+      outline: none; resize: none;
+      font-family: 'Raleway', sans-serif;
+      font-size: .75rem; color: var(--text-main);
+      line-height: 1.5; padding: 8px 10px;
+      transition: border-color .25s ease;
+    }
+    .context-textarea::placeholder { color: rgba(167,139,250,.4); font-size: .7rem; }
+    .context-textarea:focus { border-color: var(--accent-bright); box-shadow: 0 0 10px rgba(168,85,247,.3); }
+
+    .prompt-card { cursor: text !important; }
+    .prompt-card:focus-within { border-color: var(--accent-bright); box-shadow: 0 8px 28px rgba(123,63,228,.35); }
+    .divider { height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); margin: 4px 0 20px; }
+
+    /* ═══ EDIT PAGE ═══ */
+    .edit-list { max-width: 680px; margin: 0 auto; padding: 0 16px; }
+    .edit-row {
+      display: flex; gap: 14px; align-items: flex-start;
+      background: var(--bg-card);
+      border: 1.5px solid var(--border); border-radius: 14px;
+      padding: 14px; margin-bottom: 14px;
+      cursor: grab; transition: all .25s ease;
+    }
+    .edit-row:hover { border-color: var(--accent-bright); box-shadow: 0 0 16px rgba(168,85,247,.3); }
+    .edit-row.dragging { opacity: .4; border-color: var(--gold); }
+    .edit-row.drag-over { border-color: var(--success); box-shadow: 0 0 24px rgba(52,211,153,.5); }
+
+    .edit-thumb {
+      flex-shrink: 0; width: 140px; height: 80px;
+      border-radius: 8px; overflow: hidden;
+      border: 1px solid rgba(130,80,255,.2);
+    }
+    .edit-thumb img { width: 100%; height: 100%; object-fit: cover; pointer-events: none; }
+
+    .edit-content { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .edit-caption-label {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .edit-caption-label span {
+      font-size: .7rem; font-weight: 600; color: var(--text-dim);
+      text-transform: uppercase; letter-spacing: 1px;
+    }
+    .edit-caption-textarea {
+      width: 100%; height: 64px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(130,80,255,.25); border-radius: 8px;
+      outline: none; resize: vertical;
+      font-family: 'Raleway', sans-serif;
+      font-size: .75rem; color: var(--text-main);
+      line-height: 1.5; padding: 8px 10px;
+      transition: border-color .25s ease;
+    }
+    .edit-caption-textarea:focus { border-color: var(--accent-bright); box-shadow: 0 0 10px rgba(168,85,247,.3); }
+
+    .edit-order-badge {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent), var(--accent-bright));
+      display: flex; align-items: center; justify-content: center;
+      font-size: .65rem; font-weight: 700; color: #fff;
+      flex-shrink: 0;
+    }
+    .edit-delete-btn {
+      width: 24px; height: 24px; border-radius: 50%;
+      background: rgba(248,113,113,.85);
+      display: flex; align-items: center; justify-content: center;
+      font-size: .75rem; font-weight: 700; color: #fff;
+      border: none; cursor: pointer; transition: transform .2s;
+      flex-shrink: 0; line-height: 1;
+    }
+    .edit-delete-btn:hover { transform: scale(1.15); }
+
+    .edit-section-title {
+      font-family: 'Cinzel', serif;
+      font-size: clamp(1rem, 3vw, 1.4rem);
+      font-weight: 900; text-align: center;
+      color: var(--text-white); letter-spacing: 2px;
+      text-transform: uppercase;
+      padding: clamp(28px, 5vw, 48px) 0 8px;
+    }
+    .edit-sub { text-align: center; font-size: .82rem; color: var(--text-dim); margin-bottom: 16px; }
+    .edit-actions {
+      display: flex; gap: 14px; justify-content: center;
+      padding: 24px 16px 48px; max-width: 480px; margin: 0 auto;
+    }
+    .edit-actions button { flex: 1; }
+
+    /* ═══ RESULT PAGE ═══ */
+    .result-hero { text-align: center; padding: clamp(32px, 6vw, 64px) 20px 24px; }
+    .result-hero h1 { font-family: 'Cinzel', serif; font-size: clamp(1.2rem, 4vw, 2rem); font-weight: 900; color: var(--text-white); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 12px; }
+    .result-hero p { font-size: clamp(.78rem, 2vw, .95rem); color: var(--text-dim); max-width: 480px; margin: 0 auto; line-height: 1.65; }
+    .video-wrapper { max-width: 680px; margin: 24px auto 32px; padding: 0 16px; }
+    .video-container { position: relative; width: 100%; padding-top: 56.25%; border-radius: 18px; overflow: hidden; border: 2px solid var(--border); box-shadow: 0 0 48px rgba(123,63,228,.4); background: #0d0726; }
+    .video-container video { position: absolute; inset: 0; width: 100%; height: 100%; border: none; border-radius: 18px; }
+    .result-actions { display: flex; gap: 14px; justify-content: center; padding: 0 16px 48px; max-width: 480px; margin: 0 auto; }
+    .result-actions button { flex: 1; }
+
+    /* ═══ LOADER ═══ */
+    .loader-overlay {
+      position: fixed; inset: 0; z-index: 200;
+      background: rgba(10,5,32,.92);
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center; gap: 20px;
+      backdrop-filter: blur(8px);
+    }
+    .loader-overlay.show { display: flex; }
+    .spinner { width: 56px; height: 56px; border: 4px solid rgba(168,85,247,.2); border-top-color: var(--accent-bright); border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .loader-text { font-size: .85rem; color: var(--text-dim); letter-spacing: 2px; animation: pulse 1.5s ease-in-out infinite; }
+    @keyframes pulse { 0%,100%{opacity:.5} 50%{opacity:1} }
+
+    /* ═══ TOAST ═══ */
+    .toast {
+      position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px);
+      z-index: 300; background: var(--bg-mid); border: 1.5px solid var(--border);
+      border-radius: 12px; padding: 12px 24px;
+      font-size: .85rem; color: var(--text-main);
+      box-shadow: 0 8px 32px rgba(0,0,0,.4);
+      transition: transform .35s cubic-bezier(.34,1.56,.64,1);
+      white-space: nowrap; pointer-events: none;
+    }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    .toast.success { border-color: var(--success); color: var(--success); }
+    .toast.error   { border-color: var(--error);   color: var(--error); }
+
+    .fade-up { opacity: 0; transform: translateY(20px); animation: fadeUp .5s ease forwards; }
+    @keyframes fadeUp { to { opacity: 1; transform: none; } }
+    .delay-1 { animation-delay: .1s; } .delay-2 { animation-delay: .2s; }
+    .delay-3 { animation-delay: .3s; } .delay-4 { animation-delay: .4s; }
+    .delay-5 { animation-delay: .5s; }
+
+    ::-webkit-scrollbar { width: 5px; }
+    ::-webkit-scrollbar-track { background: var(--bg-deep); }
+    ::-webkit-scrollbar-thumb { background: var(--accent); border-radius: 4px; }
+    @media (max-width: 380px) { .input-grid { grid-template-columns: 1fr; } }
+    @media (max-width: 520px) { .edit-row { flex-direction: column; } .edit-thumb { width: 100%; height: 120px; } }
+  </style>
 </head>
 <body>
 
-<div class="app-container">
-
-  <!-- Header -->
-  <header class="app-header">
-    <h1>✨ PicStory</h1>
-    <p>AI-powered video storytelling · 22 Indian languages</p>
-  </header>
-
-  <!-- Step Bar -->
-  <nav class="step-bar">
-    <div class="step-dot active">1</div><div class="step-line"></div>
-    <div class="step-dot">2</div><div class="step-line"></div>
-    <div class="step-dot">3</div><div class="step-line"></div>
-    <div class="step-dot">4</div><div class="step-line"></div>
-    <div class="step-dot">5</div><div class="step-line"></div>
-    <div class="step-dot">6</div><div class="step-line"></div>
-    <div class="step-dot">7</div><div class="step-line"></div>
-    <div class="step-dot">8</div>
+<!-- ══════════════ PAGE 1: MAIN — Steps 1, 2, 3 ══════════════ -->
+<div id="mainPage" class="page active">
+  <nav>
+    <div class="logo">PicStory</div>
   </nav>
 
-  <!-- Step 0: Mode Selection -->
-  <section class="step-section active" id="step-0">
-    <div class="card">
-      <h2 class="card-title">Choose Your Mode</h2>
-      <p class="card-subtitle">How would you like to start?</p>
-      <div class="mode-grid">
-        <div class="mode-card" data-mode="upload">
-          <div class="icon">📸</div>
-          <h3>Upload Photos</h3>
-          <p>Upload a ZIP of your own photos and turn them into a narrated video</p>
-        </div>
-        <div class="mode-card" data-mode="awareness">
-          <div class="icon">🧠</div>
-          <h3>Awareness Topic</h3>
-          <p>Type a topic in any Indian language — AI generates the images for you</p>
-        </div>
+  <section class="hero">
+    <div class="hero-pill fade-up">✦ AI-Powered Video Stories</div>
+    <h1 class="hero-tagline fade-up delay-1">Turn Moments Into<br/>Cinematic Stories</h1>
+    <p class="hero-sub fade-up delay-2">Upload your photos or describe a topic — PicStory generates a stunning narrated video in your language.</p>
+    <div class="steps fade-up delay-3">
+      <div class="step"><div class="step-num">1</div><div class="step-label">Upload /<br/>Prompt</div></div>
+      <div class="step"><div class="step-num">2</div><div class="step-label">Select<br/>Language</div></div>
+      <div class="step"><div class="step-num">3</div><div class="step-label">Select<br/>Audio</div></div>
+      <div class="step"><div class="step-num">4</div><div class="step-label">Edit</div></div>
+      <div class="step"><div class="step-num">5</div><div class="step-label">Download</div></div>
+    </div>
+  </section>
+
+  <div class="container">
+    <!-- Step 1: Upload / Prompt -->
+    <h2 class="section-title fade-up delay-3">Step 1 — Your Content</h2>
+    <div class="input-grid fade-up delay-4">
+      <!-- ZIP upload card — only opens file picker -->
+      <label class="card" for="zipInput" id="zipCard">
+        <div class="card-icon">📁</div>
+        <div class="card-label">Upload ZIP<br/><small style="color:var(--text-dim);font-size:.6rem">(max 8 photos)</small></div>
+        <input type="file" id="zipInput" accept=".zip"/>
+        <div class="zip-name" id="zipName"></div>
+      </label>
+
+      <!-- Prompt card -->
+      <div class="card prompt-card" id="promptCard">
+        <div class="card-icon">✨</div>
+        <div class="card-label">Awareness Prompt</div>
+        <textarea class="prompt-textarea" id="promptInput"
+          placeholder="e.g. 'Save water, every drop counts'"></textarea>
       </div>
     </div>
-  </section>
 
-  <!-- Step 1: Input -->
-  <section class="step-section" id="step-1">
-    <div class="card">
-      <h2 class="card-title">Provide Your Content</h2>
-      <div id="step-1-content"></div>
+    <!-- Context textarea — SEPARATE from the label so it's independently clickable -->
+    <div class="context-box fade-up delay-4" id="contextBox">
+      <div class="context-box-title">📝 Context for your photos</div>
+      <textarea class="context-textarea" id="zipDescInput"
+        placeholder="Describe the story behind your photos, e.g. 'My Goa vacation with college friends, beach bonfire and sunset…'"></textarea>
     </div>
-  </section>
 
-  <!-- Step 2: Captioning -->
-  <section class="step-section" id="step-2">
-    <div class="card">
-      <h2 class="card-title">Image Captioning</h2>
-      <div id="step-2-content"></div>
+    <div class="divider"></div>
+
+    <!-- Step 2: Select Language -->
+    <div class="section-box fade-up delay-4">
+      <div class="section-box-title">Step 2 — Language</div>
+      <div class="pill-grid" id="languagePills">
+        <button class="pill selected" data-group="lang" data-val="English">English</button>
+        <button class="pill" data-group="lang" data-val="Hindi">Hindi</button>
+        <button class="pill" data-group="lang" data-val="Tamil">Tamil</button>
+        <button class="pill" data-group="lang" data-val="Telugu">Telugu</button>
+        <button class="pill" data-group="lang" data-val="Kannada">Kannada</button>
+        <button class="pill" data-group="lang" data-val="Malayalam">Malayalam</button>
+        <button class="pill" data-group="lang" data-val="Bengali">Bengali</button>
+        <button class="pill" data-group="lang" data-val="Marathi">Marathi</button>
+        <button class="pill" data-group="lang" data-val="Gujarati">Gujarati</button>
+        <button class="pill" data-group="lang" data-val="Punjabi">Punjabi</button>
+        <button class="pill" data-group="lang" data-val="Odia">Odia</button>
+        <button class="pill" data-group="lang" data-val="Urdu">Urdu</button>
+        <button class="pill" data-group="lang" data-val="Assamese">Assamese</button>
+        <button class="pill" data-group="lang" data-val="Konkani">Konkani</button>
+        <button class="pill" data-group="lang" data-val="Nepali">Nepali</button>
+        <button class="pill" data-group="lang" data-val="Sanskrit">Sanskrit</button>
+        <button class="pill" data-group="lang" data-val="Maithili">Maithili</button>
+        <button class="pill" data-group="lang" data-val="Dogri">Dogri</button>
+        <button class="pill" data-group="lang" data-val="Kashmiri">Kashmiri</button>
+        <button class="pill" data-group="lang" data-val="Sindhi">Sindhi</button>
+        <button class="pill" data-group="lang" data-val="Manipuri">Manipuri</button>
+        <button class="pill" data-group="lang" data-val="Bodo">Bodo</button>
+        <button class="pill" data-group="lang" data-val="Santali">Santali</button>
+      </div>
     </div>
-  </section>
 
-  <!-- Step 3: Music -->
-  <section class="step-section" id="step-3">
-    <div class="card">
-      <h2 class="card-title">Background Music</h2>
-      <div id="step-3-content"></div>
+    <!-- Step 3: Select Audio -->
+    <div class="section-box fade-up delay-5">
+      <div class="section-box-title">Step 3 — Audio Vibe</div>
+      <div class="pill-grid" id="audioPills">
+        <button class="pill selected" data-group="audio" data-val="Calm">Calm</button>
+        <button class="pill" data-group="audio" data-val="Romantic">Romantic</button>
+        <button class="pill" data-group="audio" data-val="Happy">Happy</button>
+        <button class="pill" data-group="audio" data-val="Sad">Sad</button>
+        <button class="pill" data-group="audio" data-val="Motivational">Motivational</button>
+        <button class="pill" data-group="audio" data-val="Cinematic">Cinematic</button>
+        <button class="pill" data-group="audio" data-val="Rock">Rock</button>
+        <button class="pill" data-group="audio" data-val="Hip-Hop">Hip-Hop</button>
+        <button class="pill" data-group="audio" data-val="Cultural">Cultural</button>
+        <button class="pill" data-group="audio" data-val="Electric">Electric</button>
+        <button class="pill" data-group="audio" data-val="Lo-Fi / Chill">Lo-Fi / Chill</button>
+        <button class="pill" data-group="audio" data-val="Emotional">Emotional</button>
+      </div>
     </div>
-  </section>
 
-  <!-- Step 4: Narration -->
-  <section class="step-section" id="step-4">
-    <div class="card">
-      <h2 class="card-title">Narration</h2>
-      <div id="step-4-content"></div>
-    </div>
-  </section>
-
-  <!-- Step 5: Editor -->
-  <section class="step-section" id="step-5">
-    <div class="card">
-      <h2 class="card-title">Image Editor</h2>
-      <div id="step-5-content"></div>
-    </div>
-  </section>
-
-  <!-- Step 6: Assembly -->
-  <section class="step-section" id="step-6">
-    <div class="card">
-      <h2 class="card-title">Video Assembly</h2>
-      <div id="step-6-content"></div>
-    </div>
-  </section>
-
-  <!-- Step 7: Output -->
-  <section class="step-section" id="step-7">
-    <div class="card">
-      <h2 class="card-title">Your Video is Ready!</h2>
-      <div id="step-7-content"></div>
-    </div>
-  </section>
-
+    <button class="action-btn btn-primary fade-up delay-5" onclick="handlePrepare()">✨ &nbsp;Generate Story</button>
+  </div>
 </div>
 
-<script src="/static/app.js"></script>
+
+<!-- ══════════════ PAGE 2: EDIT — Step 4 ══════════════ -->
+<div id="editPage" class="page">
+  <nav>
+    <div class="logo">PicStory</div>
+    <button class="nav-btn" onclick="showPage('mainPage')">← Back</button>
+  </nav>
+
+  <h1 class="edit-section-title fade-up">Step 4 — Edit Your Story</h1>
+  <p class="edit-sub fade-up delay-1">Drag to reorder • Click ✕ to remove • Edit captions before generating</p>
+
+  <div class="edit-list" id="editList"></div>
+
+  <div class="edit-actions">
+    <button class="action-btn btn-primary fade-up delay-3" onclick="handleRender()">🎬 &nbsp;Generate Video</button>
+  </div>
+</div>
+
+
+<!-- ══════════════ PAGE 3: RESULT — Step 5 ══════════════ -->
+<div id="resultPage" class="page">
+  <nav>
+    <div class="logo">PicStory</div>
+    <button class="nav-btn" onclick="showPage('mainPage')">← Create New</button>
+  </nav>
+
+  <section class="result-hero">
+    <h1 class="fade-up">Your Story is Ready</h1>
+    <p class="fade-up delay-1">Watch your cinematic video below or download it.</p>
+  </section>
+
+  <div class="video-wrapper fade-up delay-2">
+    <div class="video-container">
+      <video id="resultVideo" controls autoplay></video>
+    </div>
+  </div>
+
+  <div class="result-actions">
+    <button class="action-btn btn-primary fade-up delay-3" id="downloadFinalBtn">⬇ &nbsp;Download Video</button>
+  </div>
+</div>
+
+
+<!-- Loader -->
+<div class="loader-overlay" id="loader">
+  <div class="spinner"></div>
+  <div class="loader-text" id="loaderText">Processing…</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+
+<script>
+  // ─── State ───
+  const state = {
+    zipFile: null,
+    zipDesc: '',
+    prompt: '',
+    selectedLanguage: 'English',
+    selectedAudio: 'Calm',
+    // After /api/prepare (ZIP mode)
+    projectId: null,
+    editItems: [],   // [{url, caption}, ...]
+    language: '',
+    audio: '',
+  };
+
+  // ─── Page navigation ───
+  function showPage(id) {
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById(id).classList.add('active');
+    window.scrollTo(0, 0);
+  }
+
+  // ─── Pill selection ───
+  document.querySelectorAll('.pill').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const group = btn.dataset.group;
+      document.querySelectorAll(`.pill[data-group="${group}"]`).forEach(b => b.classList.remove('selected'));
+      btn.classList.add('selected');
+      if (group === 'lang')  state.selectedLanguage = btn.dataset.val;
+      if (group === 'audio') state.selectedAudio    = btn.dataset.val;
+    });
+  });
+
+  // ─── ZIP input ───
+  document.getElementById('zipInput').addEventListener('change', e => {
+    const file = e.target.files[0];
+    if (file) {
+      state.zipFile = file;
+      document.getElementById('zipName').textContent = file.name;
+    }
+  });
+
+  // ─── Sync text fields ───
+  document.getElementById('promptInput').addEventListener('input', e => { state.prompt = e.target.value; });
+  document.getElementById('zipDescInput').addEventListener('input', e => { state.zipDesc = e.target.value; });
+
+  // ─── Validation ───
+  function validate() {
+    if (!state.zipFile && !state.prompt.trim()) {
+      showToast('📎 Upload a ZIP or enter a prompt.', 'error');
+      return false;
+    }
+    return true;
+  }
+
+  // ─── PREPARE (Steps 1-3) ───
+  async function handlePrepare() {
+    if (!validate()) return;
+    showLoader('Preparing your story… (Captioning images with AI)');
+
+    try {
+      const fd = new FormData();
+      if (state.zipFile)       fd.append('zip',      state.zipFile);
+      if (state.zipDesc)       fd.append('zip_desc', state.zipDesc);
+      if (state.prompt)        fd.append('prompt',   state.prompt);
+      fd.append('language', state.selectedLanguage);
+      fd.append('audio',    state.selectedAudio);
+
+      const res = await fetch('/api/prepare', { method: 'POST', body: fd });
+      hideLoader();
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast('❌ ' + (err.detail || 'Preparation failed.'), 'error');
+        return;
+      }
+
+      const data = await res.json();
+
+      if (data.mode === 'zip') {
+        state.projectId  = data.projectId;
+        state.editItems  = data.images.map(img => ({ url: img.url, caption: img.caption }));
+        state.language   = data.language || state.selectedLanguage;
+        state.audio      = data.audio || state.selectedAudio;
+        renderEditList();
+        showPage('editPage');
+        showToast('✅ Images captioned! Review and edit before generating.', 'success');
+
+      } else if (data.mode === 'prompt') {
+        showResultPage(data.videoUrl);
+        showToast('✅ Video ready for playback!', 'success');
+      }
+
+    } catch (err) {
+      hideLoader();
+      showToast('❌ Network error: ' + err.message, 'error');
+    }
+  }
+
+  // ─── EDIT LIST (Step 4) — images + editable captions ───
+  let dragSrcIdx = null;
+
+  function renderEditList() {
+    const list = document.getElementById('editList');
+    list.innerHTML = '';
+
+    state.editItems.forEach((item, idx) => {
+      const row = document.createElement('div');
+      row.className = 'edit-row';
+      row.draggable = true;
+      row.dataset.idx = idx;
+
+      row.innerHTML = `
+        <div class="edit-order-badge">${idx + 1}</div>
+        <div class="edit-thumb"><img src="${item.url}" alt="Image ${idx + 1}"/></div>
+        <div class="edit-content">
+          <div class="edit-caption-label">
+            <span>Caption #${idx + 1}</span>
+            <button class="edit-delete-btn" title="Remove">✕</button>
+          </div>
+          <textarea class="edit-caption-textarea" data-idx="${idx}">${item.caption}</textarea>
+        </div>
+      `;
+
+      // Caption editing
+      row.querySelector('.edit-caption-textarea').addEventListener('input', e => {
+        state.editItems[idx].caption = e.target.value;
+      });
+
+      // Delete
+      row.querySelector('.edit-delete-btn').addEventListener('click', e => {
+        e.stopPropagation();
+        state.editItems.splice(idx, 1);
+        renderEditList();
+      });
+
+      // Drag events
+      row.addEventListener('dragstart', e => {
+        dragSrcIdx = idx;
+        row.classList.add('dragging');
+        e.dataTransfer.effectAllowed = 'move';
+      });
+      row.addEventListener('dragend', () => { row.classList.remove('dragging'); });
+      row.addEventListener('dragover', e => { e.preventDefault(); row.classList.add('drag-over'); });
+      row.addEventListener('dragleave', () => { row.classList.remove('drag-over'); });
+      row.addEventListener('drop', e => {
+        e.preventDefault();
+        row.classList.remove('drag-over');
+        const targetIdx = idx;
+        if (dragSrcIdx !== null && dragSrcIdx !== targetIdx) {
+          const [moved] = state.editItems.splice(dragSrcIdx, 1);
+          state.editItems.splice(targetIdx, 0, moved);
+          renderEditList();
+        }
+      });
+
+      list.appendChild(row);
+    });
+  }
+
+  // ─── RENDER (Step 5) ───
+  async function handleRender() {
+    if (state.editItems.length === 0) {
+      showToast('⚠️ You need at least 1 image.', 'error');
+      return;
+    }
+
+    showLoader('Generating narration, music & video…');
+
+    try {
+      const res = await fetch('/api/render', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          projectId: state.projectId,
+          images: state.editItems,  // [{url, caption}, ...]
+          language: state.language,
+          audio: state.audio,
+        }),
+      });
+      hideLoader();
+
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        showToast('❌ ' + (err.detail || 'Render failed.'), 'error');
+        return;
+      }
+
+      const data = await res.json();
+      showResultPage(data.videoUrl);
+      showToast('✅ Video ready for playback!', 'success');
+
+    } catch (err) {
+      hideLoader();
+      showToast('❌ Network error: ' + err.message, 'error');
+    }
+  }
+
+  // ─── Show result ───
+  function showResultPage(videoUrl) {
+    showPage('resultPage');
+    const vid = document.getElementById('resultVideo');
+    vid.src = videoUrl;
+    document.getElementById('downloadFinalBtn').onclick = () => triggerDownload(videoUrl, 'picstory-video.mp4');
+    // Auto-download the video
+    setTimeout(() => triggerDownload(videoUrl, 'picstory-video.mp4'), 800);
+  }
+
+  function triggerDownload(url, filename) {
+    const a = document.createElement('a');
+    a.href = url; a.download = filename;
+    document.body.appendChild(a); a.click();
+    document.body.removeChild(a);
+    showToast('✅ Download started!', 'success');
+  }
+
+  // ─── Helpers ───
+  function showLoader(msg) { document.getElementById('loaderText').textContent = msg || 'Loading…'; document.getElementById('loader').classList.add('show'); }
+  function hideLoader()    { document.getElementById('loader').classList.remove('show'); }
+
+  let toastTimer;
+  function showToast(msg, type) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.className = 'toast show ' + (type || '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
+  }
+</script>
 </body>
 </html>

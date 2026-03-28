@@ -8,7 +8,7 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.connection import init_db
-from app.api.routes import upload, generate, caption, music, narration, edit, video, social, status
+from app.api.routes import edit, social, status, api_prepare, api_render
 
 
 # ---------------------------------------------------------------------------
@@ -32,7 +32,7 @@ async def lifespan(app: FastAPI):
 app = FastAPI(
     title="PicStory API",
     description="AI-powered video generation from photos — 22 Indian languages supported.",
-    version="2.0.0",
+    version="3.0.0",
     lifespan=lifespan,
 )
 
@@ -77,15 +77,11 @@ async def global_exception_handler(request: Request, exc: Exception):
 # ---------------------------------------------------------------------------
 # Register all route modules
 # ---------------------------------------------------------------------------
-app.include_router(upload.router,    tags=["Pipeline"])
-app.include_router(generate.router,  tags=["Pipeline"])
-app.include_router(caption.router,   tags=["Pipeline"])
-app.include_router(music.router,     tags=["Pipeline"])
-app.include_router(narration.router, tags=["Pipeline"])
-app.include_router(edit.router,      tags=["Pipeline"])
-app.include_router(video.router,     tags=["Pipeline"])
-app.include_router(social.router,    tags=["Pipeline"])
-app.include_router(status.router,    tags=["Status"])
+app.include_router(edit.router,        tags=["Pipeline"])
+app.include_router(social.router,      tags=["Pipeline"])
+app.include_router(api_prepare.router, tags=["Pipeline"])
+app.include_router(api_render.router,  tags=["Pipeline"])
+app.include_router(status.router,      tags=["Status"])
 
 
 # ---------------------------------------------------------------------------
