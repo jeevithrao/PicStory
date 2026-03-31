@@ -16,14 +16,14 @@ from app.api.routes import edit, social, status, api_prepare, api_render
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Starting PicStory backend...")
+    print("[PicStory] Starting backend...")
     try:
         init_db()
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"[ERROR] Database initialization failed: {e}")
         print("   Check your .env DB credentials and ensure MySQL is running.")
     yield
-    print("👋 Shutting down PicStory backend.")
+    print("[PicStory] Shutting down backend.")
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +67,7 @@ import traceback
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
-    print(f"❌ Unhandled error on {request.method} {request.url.path}:\n{tb}")
+    print(f"[ERROR] Unhandled error on {request.method} {request.url.path}:\n{tb}")
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc), "type": type(exc).__name__}
@@ -82,6 +82,10 @@ app.include_router(social.router,      tags=["Pipeline"])
 app.include_router(api_prepare.router, tags=["Pipeline"])
 app.include_router(api_render.router,  tags=["Pipeline"])
 app.include_router(status.router,      tags=["Status"])
+
+# Wrapper endpoints for frontend compatibility
+from app.api.routes import wrapper_endpoints
+app.include_router(wrapper_endpoints.router, tags=["Frontend"])
 
 
 # ---------------------------------------------------------------------------

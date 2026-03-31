@@ -75,7 +75,17 @@ def _enhance_captions_with_gemini(
         # Build context instruction
         context_instruction = ""
         if context and context.strip():
-            context_instruction = f"""
+            is_awareness = context.strip().lower().startswith("awareness:")
+            if is_awareness:
+                clean_context = context.strip()[10:].strip()
+                if not clean_context:
+                    clean_context = "Social Awareness"
+                context_instruction = f"""
+IMPORTANT CONTEXT: This is an awareness campaign about: "{clean_context}".
+You MUST use this context to frame the image descriptions. Highlight the social cause, urgency, or educational message related to this topic in an impactful, purposeful way.
+"""
+            else:
+                context_instruction = f"""
 IMPORTANT CONTEXT: The user says these images are about: "{context.strip()}"
 You MUST use this context to guide and enrich your descriptions. Weave it into the emotional narrative naturally.
 """

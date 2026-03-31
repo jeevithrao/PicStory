@@ -144,13 +144,6 @@
     #zipInput { display: none; }
     .zip-name { font-size: .68rem; color: var(--success); text-align: center; word-break: break-all; max-height: 32px; overflow: hidden; }
 
-    .prompt-textarea {
-      width: 100%; height: 80px;
-      background: transparent; border: none; outline: none; resize: none;
-      font-family: 'Raleway', sans-serif; line-height: 1.5;
-      color: var(--text-main); caret-color: var(--accent-glow); cursor: text;
-    }
-    .prompt-textarea::placeholder { color: rgba(167,139,250,.45); }
 
     .section-box {
       background: var(--bg-card);
@@ -210,8 +203,7 @@
     .context-textarea::placeholder { color: rgba(167,139,250,.4); font-size: .7rem; }
     .context-textarea:focus { border-color: var(--accent-bright); box-shadow: 0 0 10px rgba(168,85,247,.3); }
 
-    .prompt-card { cursor: text !important; }
-    .prompt-card:focus-within { border-color: var(--accent-bright); box-shadow: 0 8px 28px rgba(123,63,228,.35); }
+
     .divider { height: 1px; background: linear-gradient(to right, transparent, var(--border), transparent); margin: 4px 0 20px; }
 
     /* ═══ EDIT PAGE ═══ */
@@ -370,20 +362,14 @@
         <div class="zip-name" id="zipName"></div>
       </label>
 
-      <!-- Prompt card -->
-      <div class="card prompt-card" id="promptCard">
-        <div class="card-icon">✨</div>
-        <div class="card-label">Awareness Prompt</div>
-        <textarea class="prompt-textarea" id="promptInput"
-          placeholder="e.g. 'Save water, every drop counts'"></textarea>
-      </div>
+
     </div>
 
     <!-- Context textarea — SEPARATE from the label so it's independently clickable -->
     <div class="context-box fade-up delay-4" id="contextBox">
       <div class="context-box-title">📝 Context for your photos</div>
       <textarea class="context-textarea" id="zipDescInput"
-        placeholder="Describe the story behind your photos, e.g. 'My Goa vacation with college friends, beach bonfire and sunset…'"></textarea>
+        placeholder="type context for video or start with &quot;Awareness:&quot; for awareness video"></textarea>
     </div>
 
     <div class="divider"></div>
@@ -498,8 +484,7 @@
   // ─── State ───
   const state = {
     zipFile: null,
-    zipDesc: '',
-    prompt: '',
+
     selectedLanguage: 'English',
     selectedAudio: 'Calm',
     // After /api/prepare (ZIP mode)
@@ -537,13 +522,13 @@
   });
 
   // ─── Sync text fields ───
-  document.getElementById('promptInput').addEventListener('input', e => { state.prompt = e.target.value; });
+
   document.getElementById('zipDescInput').addEventListener('input', e => { state.zipDesc = e.target.value; });
 
   // ─── Validation ───
   function validate() {
-    if (!state.zipFile && !state.prompt.trim()) {
-      showToast('📎 Upload a ZIP or enter a prompt.', 'error');
+    if (!state.zipFile) {
+      showToast('📎 Upload a ZIP file first.', 'error');
       return false;
     }
     return true;
@@ -558,7 +543,7 @@
       const fd = new FormData();
       if (state.zipFile)       fd.append('zip',      state.zipFile);
       if (state.zipDesc)       fd.append('zip_desc', state.zipDesc);
-      if (state.prompt)        fd.append('prompt',   state.prompt);
+
       fd.append('language', state.selectedLanguage);
       fd.append('audio',    state.selectedAudio);
 
@@ -581,11 +566,8 @@
         renderEditList();
         showPage('editPage');
         showToast('✅ Images captioned! Review and edit before generating.', 'success');
-
-      } else if (data.mode === 'prompt') {
-        showResultPage(data.videoUrl);
-        showToast('✅ Video ready for playback!', 'success');
       }
+
 
     } catch (err) {
       hideLoader();

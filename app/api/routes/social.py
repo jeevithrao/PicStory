@@ -20,7 +20,7 @@ async def generate_social(body: SocialRequest):
     # Fetch captions for context
     captions_rows = db_service.get_captions(body.project_id)
     captions_text = " ".join([row["caption_en"] for row in captions_rows])
-    topic         = project.get("prompt") or captions_text[:200]
+    topic         = project.get("context") or captions_text[:200]
 
     # Build Gemini prompt
     prompt = f"""

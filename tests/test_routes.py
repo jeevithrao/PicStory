@@ -12,7 +12,7 @@ import io, zipfile
 def mock_db(monkeypatch):
     monkeypatch.setattr("app.db.connection.init_db", lambda: None)
     monkeypatch.setattr("app.services.db_service.create_project",   lambda **kw: "test-uuid-1234")
-    monkeypatch.setattr("app.services.db_service.get_project",      lambda pid: {"id": pid, "mode": "upload", "language": "hi", "status": "uploaded", "prompt": None} if pid == "test-uuid-1234" else None)
+    monkeypatch.setattr("app.services.db_service.get_project",      lambda pid: {"id": pid, "mode": "upload", "language": "hi", "status": "uploaded", "context": None} if pid == "test-uuid-1234" else None)
     monkeypatch.setattr("app.services.db_service.update_project_status", lambda *a: None)
     monkeypatch.setattr("app.services.db_service.save_images",      lambda *a: None)
     monkeypatch.setattr("app.services.db_service.get_images",        lambda pid: [{"filename": "test.jpg", "display_order": 0}])

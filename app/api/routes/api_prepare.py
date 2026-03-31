@@ -1,9 +1,11 @@
 # app/api/routes/api_prepare.py
 # POST /api/prepare — Phase 1 of the 5-step pipeline.
-# ZIP flow:    extracts images, runs BLIP captioning, returns images+captions for editing.
-# Prompt flow: placeholder for Nano Banana integration (TODO).
+# ZIP flow:    extracts images, runs BLIP captioning (standard) OR
+#              generates a single generic awareness caption (awareness mode).
+# Awareness mode is triggered any time the word "awareness" appears in zip_desc.
 
 import os
+import re
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
 from app.services import file_service, db_service
 
@@ -14,19 +16,18 @@ router = APIRouter()
 async def prepare(
     zip: UploadFile = File(default=None),
     zip_desc: str = Form(default=""),
-    prompt: str = Form(default=""),
     language: str = Form(default="English"),
     audio: str = Form(default="calm"),
 ):
     """
     Step 1-3: Upload/Prompt → Select Language → Select Audio.
 
-    ZIP Mode  → extracts images, generates captions via BLIP + Gemini,
-                returns image URLs + editable captions for Step 4.
-    Prompt Mode → (TODO) Nano Banana video generation.
+    ZIP Mode (Standard)   → extracts images, runs BLIP + Gemini per-image captioning.
+    ZIP Mode (Awareness)  → detects 'awareness' keyword, SKIPS BLIP entirely,
+                            generates ONE generic awareness message applied to all images.
     """
     try:
-        # ── ZIP UPLOAD FLOW ──────────────────────────────────────────
+        # ── ZIP UPLOAD FLOW ──────────────────────────────────────────────────────
         if zip is not None:
             if not zip.filename.endswith(".zip"):
                 raise HTTPException(status_code=400, detail="Only ZIP files are accepted.")
@@ -45,15 +46,65 @@ async def prepare(
             db_service.save_images(project_id, filenames)
             db_service.update_project_status(project_id, "uploaded")
 
-            # --- Run BLIP captioning immediately ---
-            db_service.update_project_status(project_id, "captioning")
-            from ai.captioning import generate_captions as blip_caption
+            # ─── DETECT AWARENESS MODE ──────────────────────────────────────────
+            # Triggered whenever the word "awareness" appears anywhere in the prompt
+            is_awareness_mode = "awareness" in zip_desc.strip().lower()
 
-            enhanced_captions = blip_caption(
-                image_paths, language=language, context=zip_desc
-            )
+            enhanced_captions = []
+            awareness_narration = []
 
-            # Save captions to DB
+            if is_awareness_mode:
+                # ── AWARENESS MODE ───────────────────────────────────────────────
+                # Per-image BLIP captioning is completely SKIPPED.
+                # Extract topic: everything after "awareness" keyword
+                topic_match = re.search(
+                    r'awareness[\s:\-–on]*(.*)', zip_desc.strip(), re.IGNORECASE
+                )
+                if topic_match and topic_match.group(1).strip():
+                    topic = topic_match.group(1).strip()
+                else:
+                    topic = zip_desc.strip()
+
+                print(f"[awareness] Mode ON — topic='{topic}' — BLIP skipped")
+                db_service.update_project_status(project_id, "captioning")
+
+                # Generate N DIFFERENT narrations — one per image — each covering a
+                # different angle of the topic. We pass neutral placeholders instead of
+                # actual image captions so Gemini focuses 100% on the awareness message.
+                from ai.story import generate_per_image_narration
+                num_images = len(image_paths)
+                placeholder_captions = [
+                    f"Awareness image {i + 1} of {num_images}"
+                    for i in range(num_images)
+                ]
+
+                narration_segments = generate_per_image_narration(
+                    placeholder_captions, language, awareness_topic=topic
+                )
+
+                # These narrations are both the displayed "caption" and the voiceover
+                enhanced_captions = narration_segments
+                # N items → render layer uses per-image voiceover mode
+                awareness_narration = narration_segments
+
+            else:
+                # ── STANDARD MODE ────────────────────────────────────────────────
+                # Run per-image BLIP + Gemini captioning as normal
+                print("[standard] Running per-image BLIP + Gemini captioning")
+                db_service.update_project_status(project_id, "captioning")
+                from ai.captioning import generate_captions as blip_caption
+
+                enhanced_captions = blip_caption(
+                    image_paths, language=language, context=zip_desc
+                )
+
+                # Generate poetic per-image narration from the captions
+                from ai.story import generate_per_image_narration
+                awareness_narration = generate_per_image_narration(
+                    enhanced_captions, language, awareness_topic=None
+                )
+
+            # ── Save captions to DB ───────────────────────────────────────────────
             caption_data = [
                 {
                     "image_filename": filenames[i],
@@ -65,141 +116,40 @@ async def prepare(
             db_service.save_captions(project_id, caption_data)
             db_service.update_project_status(project_id, "captioned")
 
-            # Build response: image URLs paired with their captions
+            # ── Build response ────────────────────────────────────────────────────
             image_urls = [
                 "/" + file_service.relative_path(p) for p in image_paths
             ]
 
             images_with_captions = [
-                {"url": image_urls[i], "caption": enhanced_captions[i]}
+                {
+                    "url": image_urls[i],
+                    "caption": enhanced_captions[i] if i < len(enhanced_captions) else "",
+                }
                 for i in range(len(image_paths))
             ]
 
-            return {
+            response = {
                 "mode": "zip",
                 "projectId": project_id,
                 "images": images_with_captions,
                 "context": zip_desc,
                 "language": language,
                 "audio": audio,
+                "isAwarenessMode": is_awareness_mode,
             }
 
-        # ── PROMPT (AWARENESS) FLOW ──────────────────────────────────
-        elif prompt.strip():
-            from app.services.translation_service import translate_to_english
+            if is_awareness_mode:
+                # The single awareness message as a lecture text
+                response["awarenessLecture"] = enhanced_captions[0] if enhanced_captions else ""
+                # One narration segment per image (all identical in awareness mode)
+                response["awarenessNarration"] = awareness_narration
 
-            project_id = db_service.create_project(
-                mode="awareness", language=language, prompt=prompt
-            )
-            db_service.update_project_status(project_id, "generating")
-
-            english_prompt = translate_to_english(prompt, language)
-
-            # --- Generate images with Gemini Imagen 3 ---
-            from google import genai
-            from google.genai import types
-            from PIL import Image
-            import io
-
-            client = genai.Client()
-
-            image_paths = []
-            result = client.models.generate_images(
-                model="imagen-3.0-generate-001",
-                prompt=english_prompt,
-                config=types.GenerateImagesConfig(
-                    number_of_images=4,
-                    output_mime_type="image/jpeg",
-                    aspect_ratio="16:9",
-                ),
-            )
-
-            for i, generated_image in enumerate(result.generated_images):
-                img_bytes = generated_image.image.image_bytes
-                img = Image.open(io.BytesIO(img_bytes))
-                fname = f"generated_{i+1}.jpg"
-                path = file_service.save_generated_image(img, fname, project_id)
-                image_paths.append(path)
-
-            filenames = [os.path.basename(p) for p in image_paths]
-            db_service.save_images(project_id, filenames)
-            db_service.update_project_status(project_id, "uploaded")
-
-            # --- Run BLIP captioning ---
-            db_service.update_project_status(project_id, "captioning")
-            from ai.captioning import generate_captions as blip_caption
-
-            enhanced_captions = blip_caption(
-                image_paths, language=language, context=prompt
-            )
-
-            db_service.update_project_status(project_id, "captioned")
-
-            # --- TTS narration ---
-            output_dir = file_service.get_project_output_dir(project_id)
-
-            from ai.audio import generate_per_image_voiceovers, generate_voiceover
-
-            per_image_results = generate_per_image_voiceovers(
-                narration_segments=enhanced_captions,
-                language=language,
-                output_dir=output_dir,
-            )
-
-            narration_text = "\n\n".join(enhanced_captions)
-            narration_path = generate_voiceover(
-                script=narration_text,
-                language=language,
-                output_dir=output_dir,
-            )
-
-            db_service.save_narration(project_id, narration_text, narration_path, language)
-            db_service.update_project_status(project_id, "narration_ready")
-
-            per_image_narrations = []
-            for i, seg in enumerate(per_image_results):
-                per_image_narrations.append({
-                    "path": seg["path"],
-                    "duration": seg["duration"],
-                    "text": enhanced_captions[i] if i < len(enhanced_captions) else "",
-                })
-
-            # --- Music ---
-            vibe = audio.lower() if audio else "calm"
-            valid_vibes = ["calm", "romantic", "rock", "happy", "sad", "motivational"]
-            if vibe not in valid_vibes:
-                vibe = "calm"
-
-            try:
-                from ai.audio import generate_music
-                music_path = generate_music(vibe, output_dir)
-            except Exception:
-                music_path = ""
-
-            # --- Video Assembly ---
-            db_service.update_project_status(project_id, "assembling")
-
-            from ai.video import assemble_video as build_video
-            video_path = build_video(
-                images=image_paths,
-                voiceover=None,
-                music=music_path,
-                output_dir=output_dir,
-                voiceover_segments=per_image_narrations,
-            )
-
-            db_service.update_project_status(project_id, "completed")
-            video_url = "/" + file_service.relative_path(video_path).replace("\\", "/")
-
-            return {
-                "mode": "prompt",
-                "projectId": project_id,
-                "videoUrl": video_url,
-            }
+            return response
 
         else:
             raise HTTPException(
-                status_code=400, detail="Please provide a ZIP file or a prompt."
+                status_code=400, detail="Please provide a ZIP file."
             )
 
     except HTTPException:

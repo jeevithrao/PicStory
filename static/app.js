@@ -8,7 +8,7 @@ const API = window.location.origin;
 // ---- State ----
 const state = {
   step: 0,          // 0=landing, 1=input, 2=caption, 3=music, 4=narration, 5=edit, 6=assemble, 7=output
-  mode: null,       // 'upload' | 'awareness'
+  mode: null,       // DEPRECATED: only ZIP upload mode supported
   projectId: null,
   language: 'hi',
   context: '',      // User-provided context for captioning
@@ -23,9 +23,11 @@ const state = {
   videoPath: null,
   socialCaption: '',
   socialHashtags: [],
+  isAwarenessMode: false,    // NEW: indicates if upload had "awareness" keyword
+  awarenessLecture: '',      // NEW: the full awareness lecture text
 };
 
-const STEPS = ['Mode', 'Input', 'Caption', 'Music', 'Narration', 'Edit', 'Video', 'Output'];
+
 
 const LANGUAGES = {
   hi: 'Hindi', kok: 'Konkani', kn: 'Kannada', doi: 'Dogri',
@@ -92,132 +94,89 @@ function goToStep(n) {
   }
 }
 
-// ---- Step 0: Mode Selection ----
-function selectMode(mode) {
-  state.mode = mode;
-  renderStep1();
-  goToStep(1);
-}
-
-// ---- Step 1: Input (Upload or Generate) ----
+// ---- Step 1: Input (Upload) ----
 function renderStep1() {
   const container = $('#step-1-content');
-  if (state.mode === 'upload') {
-    container.innerHTML = `
-      <div class="form-group">
-        <label>Choose Language</label>
-        <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0;margin-bottom:0.5rem;">
-          Descriptions and narration will be generated in this language
-        </p>
-        <div class="lang-grid" id="lang-grid-1"></div>
-      </div>
-      <div class="form-group">
-        <label>Context / Description (optional)</label>
-        <textarea class="form-textarea" id="context-input" placeholder="e.g. Family trip to Goa, December 2025 — beach sunsets, local food, group photos..."></textarea>
-        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
-          💡 Helps AI write more accurate and relevant descriptions for your photos
-        </p>
-      </div>
-      <div class="drop-zone" id="drop-zone">
-        <input type="file" accept=".zip" id="zip-input" />
-        <div class="icon">📁</div>
-        <h4>Drop your ZIP file here</h4>
-        <p>or click to browse • Max 20 images</p>
-      </div>
-      <div class="actions-row">
-        <button class="btn btn-primary" id="btn-upload" disabled>
-          Upload & Continue
-        </button>
-        <button class="btn btn-secondary" onclick="goToStep(0)">← Back</button>
-      </div>
-    `;
-    renderLangGrid('lang-grid-1');
-    const zipInput = $('#zip-input');
-    const dropZone = $('#drop-zone');
-    const btnUpload = $('#btn-upload');
+  container.innerHTML = `
+    <div class="form-group">
+      <label>Choose Language</label>
+      <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0;margin-bottom:0.5rem;">
+        Descriptions and narration will be generated in this language
+      </p>
+      <div class="lang-grid" id="lang-grid-1"></div>
+    </div>
+    <div class="form-group">
+      <label>Context / Description (optional)</label>
+      <textarea class="form-textarea" id="context-input" placeholder="Type context for video or start with 'Awareness:' for awareness video"></textarea>
+      <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
+        💡 Examples: "Family trip to Goa" or "Awareness: Cybercrime Prevention"
+      </p>
+    </div>
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" accept=".zip" id="zip-input" />
+      <div class="icon">📁</div>
+      <h4>Drop your ZIP file here</h4>
+      <p>or click to browse • Max 20 images</p>
+    </div>
+    <div class="actions-row">
+      <button class="btn btn-primary" id="btn-upload" disabled>
+        Upload & Continue
+      </button>
+    </div>
+  `;
+  renderLangGrid('lang-grid-1');
+  const zipInput = $('#zip-input');
+  const dropZone = $('#drop-zone');
+  const btnUpload = $('#btn-upload');
 
-    zipInput.addEventListener('change', () => {
-      if (zipInput.files.length > 0) {
-        dropZone.querySelector('h4').textContent = zipInput.files[0].name;
-        btnUpload.disabled = false;
-      }
-    });
-    dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
-    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
-    dropZone.addEventListener('drop', e => {
-      e.preventDefault(); dropZone.classList.remove('drag-over');
-      zipInput.files = e.dataTransfer.files;
-      zipInput.dispatchEvent(new Event('change'));
-    });
+  zipInput.addEventListener('change', () => {
+    if (zipInput.files.length > 0) {
+      dropZone.querySelector('h4').textContent = zipInput.files[0].name;
+      btnUpload.disabled = false;
+    }
+  });
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('drag-over');
+    zipInput.files = e.dataTransfer.files;
+    zipInput.dispatchEvent(new Event('change'));
+  });
 
-    btnUpload.addEventListener('click', async () => {
-      btnUpload.disabled = true;
-      btnUpload.innerHTML = '<span class="spinner"></span> Uploading...';
-      state.context = ($('#context-input') ? $('#context-input').value.trim() : '');
-      try {
-        const form = new FormData();
-        form.append('file', zipInput.files[0]);
-        form.append('language', state.language);
-        form.append('context', state.context);
-        const data = await apiFetch('/upload', { method: 'POST', body: form });
-        state.projectId = data.project_id;
-        state.imagePaths = data.image_paths;
-        await startCaptioning();
-      } catch (e) {
-        showError(container, e.message);
-        btnUpload.disabled = false;
-        btnUpload.textContent = 'Upload & Continue';
+  btnUpload.addEventListener('click', async () => {
+    btnUpload.disabled = true;
+    btnUpload.innerHTML = '<span class="spinner"></span> Uploading...';
+    state.context = ($('#context-input') ? $('#context-input').value.trim() : '');
+    try {
+      const form = new FormData();
+      form.append('file', zipInput.files[0]);
+      form.append('language', state.language);
+      form.append('context', state.context);
+      const data = await apiFetch('/upload', { method: 'POST', body: form });
+      state.projectId = data.projectId || data.project_id;
+      state.imagePaths = data.image_paths;
+      
+      // ─── CAPTURE AWARENESS DATA AND NARRATIONS ────────────────────────
+      if (data.isAwarenessMode) {
+        state.isAwarenessMode = true;
+        if (data.awarenessLecture) {
+          state.awarenessLecture = data.awarenessLecture;
+          console.log('[awareness] Captured awareness lecture (' + state.awarenessLecture.length + ' chars)');
+        }
+        if (data.awarenessNarration && Array.isArray(data.awarenessNarration)) {
+          state.perImageNarrations = data.awarenessNarration;
+          console.log('[awareness] Captured ' + state.perImageNarrations.length + ' narration segments for slideshow');
+        }
       }
-    });
-  } else {
-    // Awareness mode — prompt is English only, language is for narration
-    container.innerHTML = `
-      <div class="form-group">
-        <label>Narration Language</label>
-        <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0;margin-bottom:0.5rem;">
-          The video narration and descriptions will be generated in this language
-        </p>
-        <div class="lang-grid" id="lang-grid-1"></div>
-      </div>
-      <div class="form-group">
-        <label>Enter your topic (in English)</label>
-        <textarea class="form-textarea" id="prompt-input" placeholder="e.g. Indian culture and heritage, Save water awareness campaign..."></textarea>
-        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
-          💡 The prompt must be in English. AI will generate images from this topic.
-        </p>
-      </div>
-      <div class="actions-row">
-        <button class="btn btn-primary" id="btn-generate">
-          Generate Images
-        </button>
-        <button class="btn btn-secondary" onclick="goToStep(0)">← Back</button>
-      </div>
-    `;
-    renderLangGrid('lang-grid-1');
-
-    $('#btn-generate').addEventListener('click', async () => {
-      const prompt = $('#prompt-input').value.trim();
-      if (!prompt) return showError(container, 'Please enter a topic.');
-      const btn = $('#btn-generate');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Generating images...';
-      try {
-        const data = await apiFetch('/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, language: state.language }),
-        });
-        state.projectId = data.project_id;
-        state.imagePaths = data.image_paths;
-        await startCaptioning();
-      } catch (e) {
-        showError(container, e.message);
-        btn.disabled = false;
-        btn.textContent = 'Generate Images';
-      }
-    });
-  }
-}
+      
+      await startCaptioning();
+    } catch (e) {
+      showError(container, e.message);
+      btnUpload.disabled = false;
+      btnUpload.textContent = 'Upload & Continue';
+    }
+  });
+}}
 
 function renderLangGrid(id) {
   const grid = $(`#${id}`);
@@ -580,8 +539,13 @@ async function startVideoAssembly() {
       project_id: state.projectId,
       music_path: state.musicPath || '',
     };
-    // Pass per-image narrations for synced slideshow if available
-    if (state.perImageNarrations) {
+    // ─── PASS AWARENESS NARRATIONS FOR SYNCED SLIDESHOW ─────────────────
+    if (state.isAwarenessMode && state.perImageNarrations) {
+      payload.awareness_narration = state.perImageNarrations;
+      console.log('[awareness] Sending ' + state.perImageNarrations.length + ' awareness narration segments to video');
+    }
+    // Pass per-image narrations for synced slideshow if available (non-awareness)
+    else if (state.perImageNarrations) {
       payload.per_image_narrations = state.perImageNarrations;
     }
     const data = await apiFetch('/video', {
@@ -668,10 +632,8 @@ function copyToClipboard() {
 
 // ---- Initialize ----
 document.addEventListener('DOMContentLoaded', () => {
-  // Mode selection handlers
-  $$('.mode-card').forEach(card => {
-    card.addEventListener('click', () => selectMode(card.dataset.mode));
-  });
+  // Go directly to step 1 (upload)
+  goToStep(1);
 
   // Step 3 needs re-initialization when navigated to
   const observer = new MutationObserver(() => {

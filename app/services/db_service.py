@@ -10,15 +10,15 @@ from app.db.connection import get_connection
 # Projects
 # ---------------------------------------------------------------------------
 
-def create_project(mode: str, language: str, prompt: str = None, context: str = None) -> str:
+def create_project(mode: str, language: str, context: str = None) -> str:
     """Insert a new project row. Returns the new project_id (UUID)."""
     project_id = str(uuid.uuid4())
     conn = get_connection()
     try:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO projects (id, mode, prompt, context, language, status) VALUES (%s, %s, %s, %s, %s, %s)",
-            (project_id, mode, prompt, context, language, "uploaded")
+            "INSERT INTO projects (id, mode, context, language, status) VALUES (%s, %s, %s, %s, %s)",
+            (project_id, mode, context, language, "uploaded")
         )
         conn.commit()
     finally:
