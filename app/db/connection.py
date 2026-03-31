@@ -53,7 +53,7 @@ def init_db():
         """
         CREATE TABLE IF NOT EXISTS projects (
             id          VARCHAR(64)  NOT NULL,
-            mode        VARCHAR(10)  NOT NULL COMMENT 'upload | awareness',
+            mode        VARCHAR(10)  NOT NULL COMMENT 'upload only',
             prompt      TEXT                  COMMENT 'Mode 2 prompt (nullable)',
             context     TEXT                  COMMENT 'User-provided context for captioning (optional)',
             language    VARCHAR(10)  NOT NULL,

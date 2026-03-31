@@ -8,7 +8,7 @@ const API = window.location.origin;
 // ---- State ----
 const state = {
   step: 0,          // 0=landing, 1=input, 2=caption, 3=music, 4=narration, 5=edit, 6=assemble, 7=output
-  mode: null,       // 'upload' | 'awareness'
+  mode: 'upload',       // only 'upload' is supported now
   projectId: null,
   language: 'hi',
   context: '',      // User-provided context for captioning
@@ -94,7 +94,7 @@ function goToStep(n) {
 
 // ---- Step 0: Mode Selection ----
 function selectMode(mode) {
-  state.mode = mode;
+  state.mode = 'upload';
   renderStep1();
   goToStep(1);
 }
@@ -169,54 +169,8 @@ function renderStep1() {
         btnUpload.textContent = 'Upload & Continue';
       }
     });
-  } else {
-    // Awareness mode — prompt is English only, language is for narration
-    container.innerHTML = `
-      <div class="form-group">
-        <label>Narration Language</label>
-        <p style="font-size:0.82rem;color:var(--text-secondary);margin-top:0;margin-bottom:0.5rem;">
-          The video narration and descriptions will be generated in this language
-        </p>
-        <div class="lang-grid" id="lang-grid-1"></div>
-      </div>
-      <div class="form-group">
-        <label>Enter your topic (in English)</label>
-        <textarea class="form-textarea" id="prompt-input" placeholder="e.g. Indian culture and heritage, Save water awareness campaign..."></textarea>
-        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
-          💡 The prompt must be in English. AI will generate images from this topic.
-        </p>
-      </div>
-      <div class="actions-row">
-        <button class="btn btn-primary" id="btn-generate">
-          Generate Images
-        </button>
-        <button class="btn btn-secondary" onclick="goToStep(0)">← Back</button>
-      </div>
-    `;
-    renderLangGrid('lang-grid-1');
-
-    $('#btn-generate').addEventListener('click', async () => {
-      const prompt = $('#prompt-input').value.trim();
-      if (!prompt) return showError(container, 'Please enter a topic.');
-      const btn = $('#btn-generate');
-      btn.disabled = true;
-      btn.innerHTML = '<span class="spinner"></span> Generating images...';
-      try {
-        const data = await apiFetch('/generate', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ prompt, language: state.language }),
-        });
-        state.projectId = data.project_id;
-        state.imagePaths = data.image_paths;
-        await startCaptioning();
-      } catch (e) {
-        showError(container, e.message);
-        btn.disabled = false;
-        btn.textContent = 'Generate Images';
-      }
-    });
   }
+}
 }
 
 function renderLangGrid(id) {

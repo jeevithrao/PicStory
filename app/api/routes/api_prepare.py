@@ -84,6 +84,7 @@ async def prepare(
                 "audio": audio,
             }
 
+<<<<<<< HEAD
         # ── PROMPT (AWARENESS) FLOW ──────────────────────────────────
         elif prompt.strip():
             from app.services.translation_service import translate_to_english
@@ -196,11 +197,14 @@ async def prepare(
                 "projectId": project_id,
                 "videoUrl": video_url,
             }
+=======
+>>>>>>> origin/main
 
         else:
             raise HTTPException(
-                status_code=400, detail="Please provide a ZIP file or a prompt."
+                status_code=400, detail="Please provide a ZIP file. Awareness prompt mode is no longer supported."
             )
+
 
     except HTTPException:
         raise
