@@ -1,7 +1,7 @@
 # app/services/db_service.py
 # All database read/write operations in one place.
 # Routes and services import functions from here — no raw SQL anywhere else.
-
+import os
 import uuid
 from app.db.connection import get_connection
 
@@ -10,15 +10,15 @@ from app.db.connection import get_connection
 # Projects
 # ---------------------------------------------------------------------------
 
-def create_project(mode: str, language: str, prompt: str = None, context: str = None) -> str:
+def create_project(mode: str, language: str, audio_vibe: str = "calm", prompt: str = None, context: str = None) -> str:
     """Insert a new project row. Returns the new project_id (UUID)."""
     project_id = str(uuid.uuid4())
     conn = get_connection()
     try:
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO projects (id, mode, prompt, context, language, status) VALUES (%s, %s, %s, %s, %s, %s)",
-            (project_id, mode, prompt, context, language, "uploaded")
+            "INSERT INTO projects (id, mode, prompt, context, language, audio_vibe, status) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+            (project_id, mode, prompt, context, language, audio_vibe, "uploaded")
         )
         conn.commit()
     finally:
@@ -202,5 +202,96 @@ def get_output(project_id: str) -> dict | None:
         cur = conn.cursor(dictionary=True)
         cur.execute("SELECT * FROM outputs WHERE project_id = %s ORDER BY id DESC LIMIT 1", (project_id,))
         return cur.fetchone()
+    finally:
+        conn.close()
+
+
+def save_video_output(project_id: str, video_path: str):
+    """Upsert video path into outputs (in case social ran first or ran concurrently)."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM outputs WHERE project_id = %s", (project_id,))
+        if cur.fetchone():
+            cur.execute("UPDATE outputs SET video_path = %s WHERE project_id = %s", (video_path, project_id))
+        else:
+            cur.execute(
+                "INSERT INTO outputs (project_id, video_path, caption, hashtags) VALUES (%s, %s, %s, %s)",
+                (project_id, video_path, "", "")
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_video_blob(project_id: str, local_file_path: str):
+    """Reads a local binary file and saves it to the video_blob column."""
+    with open(local_file_path, "rb") as f:
+        blob_data = f.read()
+
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        # Ensure row exists first
+        cur.execute("SELECT id FROM outputs WHERE project_id = %s", (project_id,))
+        if not cur.fetchone():
+            cur.execute(
+                "INSERT INTO outputs (project_id, video_path, video_blob, caption, hashtags) VALUES (%s, %s, %s, %s, %s)",
+                (project_id, "", blob_data, "", "")
+            )
+        else:
+            cur.execute("UPDATE outputs SET video_blob = %s WHERE project_id = %s", (blob_data, project_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_image_blobs(project_id: str, image_paths: list[str]):
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        for path in image_paths:
+            if not os.path.exists(path): continue
+            with open(path, "rb") as f:
+                blob_data = f.read()
+            fname = os.path.basename(path)
+            cur.execute("UPDATE images SET image_blob = %s WHERE project_id = %s AND filename = %s", (blob_data, project_id, fname))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_narration_blob(project_id: str, local_file_path: str):
+    if not local_file_path or not os.path.exists(local_file_path): return
+    with open(local_file_path, "rb") as f:
+        blob_data = f.read()
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE narrations SET narration_blob = %s WHERE project_id = %s", (blob_data, project_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_music_blob(project_id: str, local_file_path: str):
+    if not local_file_path or not os.path.exists(local_file_path): return
+    with open(local_file_path, "rb") as f:
+        blob_data = f.read()
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE music SET music_blob = %s WHERE project_id = %s", (blob_data, project_id))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def save_zip_blob(project_id: str, zip_data: bytes):
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("UPDATE projects SET zip_blob = %s WHERE id = %s", (zip_data, project_id))
+        conn.commit()
     finally:
         conn.close()

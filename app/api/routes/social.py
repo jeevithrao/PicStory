@@ -1,15 +1,23 @@
 # app/api/routes/social.py  — POST /social
 # Generates social media captions + hashtags via Gemini API.
 
-import requests
 from fastapi import APIRouter, HTTPException
 from app.models.schemas import SocialRequest, SocialResponse
 from app.services import db_service
 from app.config import settings
+from google import genai
 
 router = APIRouter()
+_client = None
 
-GEMINI_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent"
+def _get_client():
+    global _client
+    if _client is None:
+        api_key = settings.GEMINI_API_KEY
+        if not api_key or api_key == "your_gemini_key_here":
+            raise ValueError("GEMINI_API_KEY is not set in .env")
+        _client = genai.Client(api_key=api_key)
+    return _client
 
 @router.post("/social", response_model=SocialResponse)
 async def generate_social(body: SocialRequest):
@@ -44,15 +52,9 @@ Respond in this exact JSON format:
 """
 
     try:
-        resp = requests.post(
-            GEMINI_URL,
-            params={"key": settings.GEMINI_API_KEY},
-            json={"contents": [{"parts": [{"text": prompt}]}]},
-            timeout=30,
-        )
-        resp.raise_for_status()
-        raw     = resp.json()
-        content = raw["candidates"][0]["content"]["parts"][0]["text"]
+        client = _get_client()
+        response = client.models.generate_content(model="gemini-flash-latest", contents=prompt)
+        content = (response.text or "").strip()
 
         # Parse JSON response from Gemini
         import json, re
@@ -68,11 +70,6 @@ Respond in this exact JSON format:
 
     # Save to DB
     hashtags_str = ",".join(hashtags)
-    narration    = db_service.get_narration(body.project_id)
-    output       = db_service.get_output(body.project_id)
-    if output:
-        pass  # Already saved from /video
-    else:
-        db_service.save_output(body.project_id, "", caption, hashtags_str)
+    db_service.save_output(body.project_id, "", caption, hashtags_str)
 
     return SocialResponse(caption=caption, hashtags=hashtags)

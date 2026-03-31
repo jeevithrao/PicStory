@@ -19,6 +19,9 @@ class Settings:
     GEMINI_API_KEY:    str = os.getenv("GEMINI_API_KEY", "")
     FREESOUND_API_KEY: str = os.getenv("FREESOUND_API_KEY", "")
 
+    # Mode
+    USE_LOCAL_MODELS: bool = os.getenv("USE_LOCAL_MODELS", "false").lower() == "true"
+
     # File Storage
     UPLOAD_DIR: str = os.getenv("UPLOAD_DIR", "uploads")
     OUTPUT_DIR: str = os.getenv("OUTPUT_DIR", "outputs")
