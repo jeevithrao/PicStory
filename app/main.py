@@ -67,7 +67,10 @@ import traceback
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
-    print(f"❌ Unhandled error on {request.method} {request.url.path}:\n{tb}")
+    error_msg = f"❌ Unhandled error on {request.method} {request.url.path}:\n{tb}"
+    print(error_msg)
+    with open("last_error.txt", "w", encoding="utf-8") as f:
+        f.write(error_msg)
     return JSONResponse(
         status_code=500,
         content={"detail": str(exc), "type": type(exc).__name__}

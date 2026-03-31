@@ -81,13 +81,16 @@ async def render(req: RenderRequest):
         )
 
         narration_text = "\n\n".join(captions)
-        narration_path = generate_voiceover(
+        narration_res = generate_voiceover(
             script=narration_text,
             language=req.language,
             output_dir=output_dir,
         )
+        narration_path = narration_res["path"]
+        narration_status = narration_res["status"]
 
         db_service.save_narration(project_id, narration_text, narration_path, req.language)
+        db_service.save_narration_blob(project_id, narration_path)
         db_service.update_project_status(project_id, "narration_ready")
 
         per_image_narrations = []
@@ -96,6 +99,7 @@ async def render(req: RenderRequest):
                 "path": seg["path"],
                 "duration": seg["duration"],
                 "text": captions[i] if i < len(captions) else "",
+                "status": seg.get("status", "audio_ok")
             })
 
         # --- Music ---
@@ -112,6 +116,7 @@ async def render(req: RenderRequest):
 
         rel_music_path = file_service.relative_path(music_path) if music_path else ""
         db_service.save_music(project_id, vibe, "ai", rel_music_path)
+        db_service.save_music_blob(project_id, music_path)
         db_service.update_project_status(project_id, "music_ready")
 
         # --- Video Assembly ---
@@ -126,8 +131,10 @@ async def render(req: RenderRequest):
             voiceover_segments=per_image_narrations,
         )
 
-        db_service.update_project_status(project_id, "completed")
         video_url = "/" + file_service.relative_path(video_path).replace("\\", "/")
+        db_service.save_video_output(project_id, video_url)
+        db_service.save_video_blob(project_id, video_path)
+        db_service.update_project_status(project_id, "completed")
 
         return {"videoUrl": video_url}
 

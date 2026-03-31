@@ -56,7 +56,9 @@ def init_db():
             mode        VARCHAR(10)  NOT NULL COMMENT 'upload | awareness',
             prompt      TEXT                  COMMENT 'Mode 2 prompt (nullable)',
             context     TEXT                  COMMENT 'User-provided context for captioning (optional)',
+            zip_blob    LONGBLOB,
             language    VARCHAR(10)  NOT NULL,
+            audio_vibe  VARCHAR(50)           COMMENT 'Selected audio vibe (calm, romantic, etc)',
             status      VARCHAR(30)  NOT NULL DEFAULT 'uploaded',
             created_at  TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
             PRIMARY KEY (id)
@@ -69,6 +71,7 @@ def init_db():
             id            INT          NOT NULL AUTO_INCREMENT,
             project_id    VARCHAR(64)  NOT NULL,
             filename      VARCHAR(255) NOT NULL,
+            image_blob    LONGBLOB,
             display_order INT          NOT NULL DEFAULT 0,
             is_removed    TINYINT(1)   NOT NULL DEFAULT 0,
             PRIMARY KEY (id),
@@ -96,6 +99,7 @@ def init_db():
             project_id      VARCHAR(64)  NOT NULL,
             narration_text  LONGTEXT,
             narration_path  VARCHAR(255),
+            narration_blob  LONGBLOB,
             language        VARCHAR(10),
             PRIMARY KEY (id),
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
@@ -110,6 +114,7 @@ def init_db():
             vibe         VARCHAR(50),
             source       VARCHAR(20)  COMMENT 'ai | library',
             music_path   VARCHAR(255),
+            music_blob   LONGBLOB,
             PRIMARY KEY (id),
             FOREIGN KEY (project_id) REFERENCES projects(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -121,6 +126,7 @@ def init_db():
             id           INT          NOT NULL AUTO_INCREMENT,
             project_id   VARCHAR(64)  NOT NULL,
             video_path   VARCHAR(255),
+            video_blob   LONGBLOB,
             caption      TEXT,
             hashtags     TEXT,
             created_at   TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -134,6 +140,44 @@ def init_db():
         cur.execute(sql)
 
     raw.commit()
+    
+    # Step 3: Upgrade existing tables
+    try:
+        cur.execute("ALTER TABLE projects ADD COLUMN zip_blob LONGBLOB AFTER context;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass
+        
+    try:
+        cur.execute("ALTER TABLE projects ADD COLUMN audio_vibe VARCHAR(50) AFTER language;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass  # Column already exists
+        
+    try:
+        cur.execute("ALTER TABLE outputs ADD COLUMN video_blob LONGBLOB AFTER video_path;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass  # Column already exists
+
+    try:
+        cur.execute("ALTER TABLE images ADD COLUMN image_blob LONGBLOB AFTER filename;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass
+        
+    try:
+        cur.execute("ALTER TABLE narrations ADD COLUMN narration_blob LONGBLOB AFTER narration_path;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass
+
+    try:
+        cur.execute("ALTER TABLE music ADD COLUMN music_blob LONGBLOB AFTER music_path;")
+        raw.commit()
+    except mysql.connector.Error:
+        pass
+
     cur.close()
     raw.close()
     print("✅ Database and all tables ready.")

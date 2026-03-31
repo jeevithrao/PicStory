@@ -82,35 +82,38 @@ def assemble_video(
 
     # --- Determine per-image durations ---
     if voiceover_segments and len(voiceover_segments) == len(images):
-        # New flow: each image matches its narration segment duration
-        clips = []
-        audio_segments = []
-
-        for i, path in enumerate(images):
+        # New flow: each image matches its narration segment duration perfectly
+        final_clips = []
+        
+        for i, img_path in enumerate(images):
             seg = voiceover_segments[i]
-            duration = max(seg.get("duration", 3.0), 2.0)  # At least 2s per image
-
-            clip = _fit_image(path).set_duration(duration)
-            clip = _ken_burns(clip)
-            clips.append(clip)
-
-            # Load the audio segment
             seg_path = seg.get("path")
+            
+            # 1. Load Audio Segment first (the source of truth for duration)
+            audio_clip = None
             if seg_path and os.path.exists(seg_path):
                 try:
-                    audio_seg = AudioFileClip(seg_path)
-                    audio_segments.append(audio_seg)
+                    audio_clip = AudioFileClip(seg_path)
                 except Exception as e:
                     print(f"⚠️  Could not load audio segment {seg_path}: {e}")
+            
+            # 2. Determine Duration
+            duration = audio_clip.duration if audio_clip else 3.0
+            if duration < 0.1: duration = 3.0 # Sanity check
+            
+            # 3. Create Image Clip with matching duration
+            img_clip = _fit_image(img_path).set_duration(duration)
+            img_clip = _ken_burns(img_clip)
+            
+            # 4. Attach audio to this specific image clip
+            if audio_clip:
+                img_clip = img_clip.set_audio(audio_clip)
+            
+            final_clips.append(img_clip)
 
-        # Concatenate video clips
-        video = concatenate_videoclips(clips, method="compose")
-
-        # Concatenate audio segments into full narration
-        if audio_segments:
-            narration_audio = concatenate_audioclips(audio_segments)
-        else:
-            narration_audio = None
+        # Concatenate the synchronized clips
+        video = concatenate_videoclips(final_clips, method="compose")
+        narration_audio = video.audio # Extracted from the synchronized video
 
     elif voiceover:
         # Legacy flow: single voiceover, equal time per image
