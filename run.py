@@ -32,12 +32,24 @@ if os.name == 'nt':
 # ---------------------------------------------------------------------------
 os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
 
+# Force venv site-packages to the front of sys.path to avoid Anaconda conflicts
+venv_site_packages = os.path.join(sys.prefix, "Lib", "site-packages")
+if venv_site_packages not in sys.path:
+    sys.path.insert(0, venv_site_packages)
+else:
+    # If it's already there but at the end, move it to the front
+    sys.path.remove(venv_site_packages)
+    sys.path.insert(0, venv_site_packages)
+
+# Ensure the subprocesses spawned by uvicorn (reload=True) use the same path
+os.environ["PYTHONPATH"] = venv_site_packages + os.pathsep + os.getcwd()
+
 import uvicorn
 
 if __name__ == "__main__":
     uvicorn.run(
         "app.main:app",
-        host="0.0.0.0",
+        host="127.0.0.1",
         port=8080,
         reload=True,
         log_level="info",
