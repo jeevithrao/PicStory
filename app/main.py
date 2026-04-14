@@ -16,14 +16,15 @@ from app.api.routes import edit, social, status, api_prepare, api_render
 # ---------------------------------------------------------------------------
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    print("🚀 Starting PicStory backend...")
+    print("[Main] Starting PicStory backend...")
     try:
         init_db()
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
+        print(f"[Main] Database initialization failed: {e}")
         print("   Check your .env DB credentials and ensure MySQL is running.")
     yield
-    print("👋 Shutting down PicStory backend.")
+    print("[Main] Shutting down PicStory backend.")
+
 
 
 # ---------------------------------------------------------------------------
@@ -67,7 +68,7 @@ import traceback
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
     tb = traceback.format_exc()
-    error_msg = f"❌ Unhandled error on {request.method} {request.url.path}:\n{tb}"
+    error_msg = f"[Main] Unhandled error on {request.method} {request.url.path}:\n{tb}"
     print(error_msg)
     with open("last_error.txt", "w", encoding="utf-8") as f:
         f.write(error_msg)
@@ -75,6 +76,7 @@ async def global_exception_handler(request: Request, exc: Exception):
         status_code=500,
         content={"detail": str(exc), "type": type(exc).__name__}
     )
+
 
 
 # ---------------------------------------------------------------------------

@@ -3,16 +3,23 @@ from google import genai
 from app.config import settings
 
 _client = None
+_current_key = None
 
 def get_client():
-    """Get or create the modern Gemini client."""
-    global _client
-    if _client is None:
-        api_key = settings.GEMINI_API_KEY
-        if not api_key or api_key == "your_gemini_key_here":
-            raise ValueError("GEMINI_API_KEY is not set in .env")
-        _client = genai.Client(api_key=api_key)
+    """Get or create the modern Gemini client, re-initializing if the key changes."""
+    global _client, _current_key
+    
+    new_key = settings.GEMINI_API_KEY
+    if not new_key or new_key == "your_gemini_key_here":
+        raise ValueError("GEMINI_API_KEY is not set in .env")
+        
+    if _client is None or _current_key != new_key:
+        print(f"[Gemini] Initializing client with key: {new_key[:8]}...")
+        _client = genai.Client(api_key=new_key)
+        _current_key = new_key
+        
     return _client
+
 
 def call_gemini_with_retry(prompt: str, model: str = "gemini-flash-latest", contents=None, config=None, max_retries: int = 5, return_raw: bool = False) -> any:
     """Helper to call Gemini with exponential backoff for transient errors."""

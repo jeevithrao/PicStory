@@ -104,7 +104,14 @@ VIBE_PROMPTS = {
     "happy":         "upbeat cheerful happy background music, bright and positive",
     "sad":           "melancholic sad emotional background music, slow piano",
     "motivational":  "inspiring motivational cinematic background music, epic and uplifting",
+    "cinematic":     "grand cinematic movie trailer score, orchestral and powerful",
+    "hip-hop":       "lo-fi hip hop beat, chill relaxed study music, drum machine",
+    "cultural":      "traditional ethnic world music, local instruments and folk style",
+    "electric":      "modern electronic dance music, synth-heavy and high energy",
+    "lo-fi / chill": "chill lo-fi beats, relaxing background lofi hip hop",
+    "emotional":     "deeply emotional and touching background music, piano and cello",
 }
+
 
 # TTS Support Categories
 NORMAL_TTS_LANGS = [
@@ -256,34 +263,40 @@ def generate_voiceover(script: str, language: str, output_dir: str) -> dict:
     # Use Parler-TTS if in Local mode OR if natively supported
     use_parler = settings.USE_LOCAL_MODELS or lang_code in NORMAL_TTS_LANGS or lang_code in WEAK_TTS_LANGS or lang_code in ROBOTIC_TTS_LANGS
     
+    # 1. Attempt Parler-TTS (Multilingual local model)
     if use_parler:
         output_path = os.path.join(output_dir, "narration.wav")
         try:
-            print(f"⏳ Attempting Indic Parler-TTS for {lang_code}...")
+            print(f"[Audio] Attempting Indic Parler-TTS for {lang_code}...")
             _generate_indic_parler_tts(script=script, language_code=lang_code, output_path=output_path)
             return {"path": output_path, "status": status}
         except Exception as e:
-            print(f"⚠️ Local TTS failed: {e}. Trying fallback options...")
-            # Fallback 1: Try Hindi in Parler
+            print(f"[Audio] Local TTS failed: {e}. Trying fallback options...")
+
+            # Fallback to Hindi if it's a weak/robotic language
             if lang_code in WEAK_TTS_LANGS or lang_code in ROBOTIC_TTS_LANGS:
                 try:
                     _generate_indic_parler_tts(script=script, language_code="hi", output_path=output_path)
                     return {"path": output_path, "status": TTS_STATUS_FALLBACK}
                 except: pass
-            
-            # Fallback 2: Edge TTS (Robust)
-            output_path_mp3 = os.path.join(output_dir, "narration.mp3")
-            try:
-                print("🌐 Falling back to Edge TTS...")
-                # Use transliterated text for proxy voices
-                tts_text = _prepare_tts_text(script, lang_code)
-                _generate_edge_tts(script=tts_text, language=language, output_path=output_path_mp3)
-                return {"path": output_path_mp3, "status": TTS_STATUS_OK}
-            except: pass
 
-            # Fallback 3: Silence
-            _write_silence_wav(output_path, seconds=3.0)
-            return {"path": output_path, "status": TTS_STATUS_TEXT}
+    # 2. Primary for English / Fallback for others: Edge TTS (Cloud-based)
+    output_path_mp3 = os.path.join(output_dir, "narration.mp3")
+    try:
+        print(f"[Audio] Using Edge TTS for {lang_code}...")
+        tts_text = _prepare_tts_text(script, lang_code)
+        _generate_edge_tts(script=tts_text, language=language, output_path=output_path_mp3)
+        return {"path": output_path_mp3, "status": TTS_STATUS_OK}
+    except Exception as e:
+        print(f"[Audio] Edge TTS failed: {e}")
+
+
+    # 3. Final Fallback: Silence
+    print("[Audio] Final fallback: Generating silence.")
+    output_path_silence = os.path.join(output_dir, "narration.wav")
+    _write_silence_wav(output_path_silence, seconds=3.0)
+    return {"path": output_path_silence, "status": TTS_STATUS_TEXT}
+
 
 
 def generate_per_image_voiceovers(narration_segments: list[str], language: str, output_dir: str) -> list[dict]:
@@ -447,7 +460,48 @@ def generate_music(vibe: str, output_dir: str, filename: str = None) -> str:
     inputs = processor(text=[prompt], padding=True, return_tensors="pt").to(model.device)
     audio_values = model.generate(**inputs, max_new_tokens=256)
     audio_np = audio_values[0, 0].cpu().numpy()
-    output_path = os.path.join(output_dir, filename or f"music_{vibe}.wav")
+    
+    # Sanitize vibe for filename
+    safe_vibe = vibe.replace("/", "-").replace(" ", "_").lower()
+    output_path = os.path.join(output_dir, filename or f"music_{safe_vibe}.wav")
+
     scipy.io.wavfile.write(output_path, model.config.audio_encoder.sampling_rate, (audio_np * 32767).astype(np.int16))
     unload_musicgen()
     return output_path
+
+def recommend_music_vibe(context: str, captions: list[str]) -> str:
+    """
+    Use Gemini to recommend a music vibe based on the story context and image captions.
+    Returns one of: calm, romantic, rock, happy, sad, motivational.
+    """
+    from app.services.gemini_service import call_gemini_with_retry
+    
+    valid_vibes = [
+        "calm", "romantic", "rock", "happy", "sad", "motivational",
+        "cinematic", "hip-hop", "cultural", "electric", "lo-fi / chill", "emotional"
+    ]
+
+    
+    # Combine context and a few captions for analysis
+    sample_captions = captions[:5] # Use first 5 as a sample
+    story_summary = f"Context: {context}\nCaptions: {' | '.join(sample_captions)}"
+    
+    prompt = (
+        "Analyze the following story context and image captions to determine the most suitable background music vibe.\n"
+        f"Story Content:\n{story_summary}\n\n"
+        "Choose EXACTLY ONE vibe from this list: [calm, romantic, rock, happy, sad, motivational].\n"
+        "Output ONLY the vibe name. No explanation."
+    )
+    
+    try:
+        vibe = call_gemini_with_retry(prompt)
+        vibe = vibe.strip().lower()
+        # Clean up any potential markdown or punctuation
+        for v in valid_vibes:
+            if v in vibe:
+                return v
+    except Exception as e:
+        print(f"[Audio] Music recommendation failed: {e}")
+        
+    return "calm" # Default fallback
+

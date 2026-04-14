@@ -206,6 +206,27 @@ def get_output(project_id: str) -> dict | None:
         conn.close()
 
 
+def save_social_kit_db(project_id: str, caption: str, hashtags: str):
+    """Update the caption and hashtags in the outputs table."""
+    conn = get_connection()
+    try:
+        cur = conn.cursor()
+        cur.execute("SELECT id FROM outputs WHERE project_id = %s", (project_id,))
+        if cur.fetchone():
+            cur.execute(
+                "UPDATE outputs SET caption = %s, hashtags = %s WHERE project_id = %s",
+                (caption, hashtags, project_id)
+            )
+        else:
+            cur.execute(
+                "INSERT INTO outputs (project_id, video_path, caption, hashtags) VALUES (%s, %s, %s, %s)",
+                (project_id, "", caption, hashtags)
+            )
+        conn.commit()
+    finally:
+        conn.close()
+
+
 def save_video_output(project_id: str, video_path: str):
     """Upsert video path into outputs (in case social ran first or ran concurrently)."""
     conn = get_connection()

@@ -23,7 +23,8 @@ const state = {
   videoPath: null,
   socialCaption: '',
   socialHashtags: [],
-};
+  awarenessMode: false,    // true → Awareness Mode
+  awarenessTopic: '',      // topic string entered by user
 
 const STEPS = ['Mode', 'Input', 'Caption', 'Music', 'Narration', 'Edit', 'Video', 'Output'];
 
@@ -118,6 +119,20 @@ function renderStep1() {
           💡 Helps AI write more accurate and relevant descriptions for your photos
         </p>
       </div>
+      <div class="form-group">
+        <label style="display:flex;align-items:center;gap:0.5rem;cursor:pointer;">
+          <input type="checkbox" id="awareness-toggle" style="width:1.1rem;height:1.1rem;cursor:pointer;" />
+          🎗️ Awareness Mode
+        </label>
+        <p style="font-size:0.78rem;color:var(--text-muted);margin-top:0.25rem;">
+          Use a single fixed awareness narration across all images instead of AI-generated captions
+        </p>
+        <div id="awareness-topic-row" style="display:none;margin-top:0.5rem;">
+          <input type="text" class="form-input" id="awareness-topic-input"
+            placeholder="e.g. Road Safety, Mental Health, Water Conservation..."
+            style="width:100%;box-sizing:border-box;" />
+        </div>
+      </div>
       <div class="drop-zone" id="drop-zone">
         <input type="file" accept=".zip" id="zip-input" />
         <div class="icon">📁</div>
@@ -132,6 +147,17 @@ function renderStep1() {
       </div>
     `;
     renderLangGrid('lang-grid-1');
+
+    // Awareness Mode toggle
+    const awarenessToggle = $('#awareness-toggle');
+    const awarenessTopicRow = $('#awareness-topic-row');
+    awarenessToggle.checked = state.awarenessMode;
+    awarenessTopicRow.style.display = state.awarenessMode ? 'block' : 'none';
+    awarenessToggle.addEventListener('change', () => {
+      state.awarenessMode = awarenessToggle.checked;
+      awarenessTopicRow.style.display = state.awarenessMode ? 'block' : 'none';
+    });
+
     const zipInput = $('#zip-input');
     const dropZone = $('#drop-zone');
     const btnUpload = $('#btn-upload');
@@ -154,6 +180,15 @@ function renderStep1() {
       btnUpload.disabled = true;
       btnUpload.innerHTML = '<span class="spinner"></span> Uploading...';
       state.context = ($('#context-input') ? $('#context-input').value.trim() : '');
+      state.awarenessTopic = (state.awarenessMode && $('#awareness-topic-input'))
+        ? $('#awareness-topic-input').value.trim()
+        : '';
+      if (state.awarenessMode && !state.awarenessTopic) {
+        showError(container, 'Please enter an awareness topic before uploading.');
+        btnUpload.disabled = false;
+        btnUpload.textContent = 'Upload & Continue';
+        return;
+      }
       try {
         const form = new FormData();
         form.append('file', zipInput.files[0]);

@@ -5,7 +5,7 @@
 import os
 from dotenv import load_dotenv
 
-load_dotenv()  # reads .env file automatically
+load_dotenv(override=True)  # reads .env file automatically, overriding existing env vars
 
 class Settings:
     # Database

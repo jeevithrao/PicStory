@@ -180,4 +180,5 @@ def init_db():
 
     cur.close()
     raw.close()
-    print("✅ Database and all tables ready.")
+    print("[DB] Database and all tables ready.")
+

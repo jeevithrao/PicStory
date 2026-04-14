@@ -22,6 +22,7 @@ class RenderRequest(BaseModel):
     images: list[ImageCaption]
     language: str = "English"
     audio: str = "calm"
+    awareness_topic: str = ""   # non-empty → Awareness Mode
 
 
 @router.post("/api/render")
@@ -68,39 +69,68 @@ async def render(req: RenderRequest):
         removed = [f for f in all_project_images if f not in filenames]
         db_service.apply_image_edits(project_id, filenames, removed)
 
-        # --- TTS: Generate per-image voiceovers from user's captions ---
+        # --- TTS: Narration (normal or awareness mode) ---
         db_service.update_project_status(project_id, "narrating")
         output_dir = file_service.get_project_output_dir(project_id)
 
         from ai.audio import generate_per_image_voiceovers, generate_voiceover
 
-        per_image_results = generate_per_image_voiceovers(
-            narration_segments=captions,
-            language=req.language,
-            output_dir=output_dir,
-        )
+        awareness_topic = (req.awareness_topic or "").strip()
 
-        narration_text = "\n\n".join(captions)
-        narration_res = generate_voiceover(
-            script=narration_text,
-            language=req.language,
-            output_dir=output_dir,
-        )
-        narration_path = narration_res["path"]
-        narration_status = narration_res["status"]
+        if awareness_topic:
+            # ── AWARENESS MODE ───────────────────────────────────────────
+            # One fixed script, one single voiceover spanning all images.
+            from ai.story import generate_awareness_narration
+            narration_text = generate_awareness_narration(awareness_topic)
 
-        db_service.save_narration(project_id, narration_text, narration_path, req.language)
-        db_service.save_narration_blob(project_id, narration_path)
-        db_service.update_project_status(project_id, "narration_ready")
+            narration_res = generate_voiceover(
+                script=narration_text,
+                language=req.language,
+                output_dir=output_dir,
+            )
+            if not narration_res:
+                raise Exception("Failed to generate awareness narration audio.")
+            narration_path = narration_res["path"]
 
-        per_image_narrations = []
-        for i, seg in enumerate(per_image_results):
-            per_image_narrations.append({
-                "path": seg["path"],
-                "duration": seg["duration"],
-                "text": captions[i] if i < len(captions) else "",
-                "status": seg.get("status", "audio_ok")
-            })
+            db_service.save_narration(project_id, narration_text, narration_path, req.language)
+            db_service.save_narration_blob(project_id, narration_path)
+            db_service.update_project_status(project_id, "narration_ready")
+
+            # Spread the single voiceover evenly across all images
+            # (video.py will handle timing via the single voiceover path)
+            per_image_narrations = []
+
+        else:
+            # ── NORMAL MODE ──────────────────────────────────────────────
+            per_image_results = generate_per_image_voiceovers(
+                narration_segments=captions,
+                language=req.language,
+                output_dir=output_dir,
+            )
+
+            narration_text = "\n\n".join(captions)
+            narration_res = generate_voiceover(
+                script=narration_text,
+                language=req.language,
+                output_dir=output_dir,
+            )
+            if not narration_res:
+                raise Exception("Failed to generate main narration audio.")
+            narration_path = narration_res["path"]
+            narration_status = narration_res["status"]
+
+            db_service.save_narration(project_id, narration_text, narration_path, req.language)
+            db_service.save_narration_blob(project_id, narration_path)
+            db_service.update_project_status(project_id, "narration_ready")
+
+            per_image_narrations = []
+            for i, seg in enumerate(per_image_results):
+                per_image_narrations.append({
+                    "path": seg["path"],
+                    "duration": seg["duration"],
+                    "text": captions[i] if i < len(captions) else "",
+                    "status": seg.get("status", "audio_ok")
+                })
 
         # --- Music ---
         vibe = req.audio.lower() if req.audio else "calm"
@@ -125,18 +155,41 @@ async def render(req: RenderRequest):
         from ai.video import assemble_video as build_video
         video_path = build_video(
             images=image_paths,
-            voiceover=None,
+            voiceover=narration_path if awareness_topic else None,
             music=music_path,
             output_dir=output_dir,
-            voiceover_segments=per_image_narrations,
+            voiceover_segments=per_image_narrations if not awareness_topic else None,
         )
 
         video_url = "/" + file_service.relative_path(video_path).replace("\\", "/")
         db_service.save_video_output(project_id, video_url)
         db_service.save_video_blob(project_id, video_path)
+        
+        # --- Social Media Kit ---
+        try:
+            from ai.story import generate_social_kit
+            social_kit = generate_social_kit(
+                captions=captions, 
+                language=req.language, 
+                context=awareness_topic or project.get("zip_desc", "")
+            )
+            # Sync with DB
+            db_service.save_social_kit_db(
+                project_id, 
+                social_kit["caption"], 
+                " ".join(social_kit["hashtags"])
+            )
+        except Exception:
+
+            social_kit = {"caption": "My PicStory video", "hashtags": ["#PicStory"]}
+
         db_service.update_project_status(project_id, "completed")
 
-        return {"videoUrl": video_url}
+        return {
+            "videoUrl": video_url,
+            "socialKit": social_kit
+        }
+
 
     except HTTPException:
         raise
