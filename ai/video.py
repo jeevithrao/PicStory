@@ -95,7 +95,8 @@ def assemble_video(
                 try:
                     audio_clip = AudioFileClip(seg_path)
                 except Exception as e:
-                    print(f"⚠️  Could not load audio segment {seg_path}: {e}")
+                    print(f"[Video] Could not load audio segment {seg_path}: {e}")
+
             
             # 2. Determine Duration
             duration = audio_clip.duration if audio_clip else 3.0
@@ -150,7 +151,8 @@ def assemble_video(
             music_audio = music_audio.volumex(0.25)  # 25% volume for background
             audio_tracks.append(music_audio)
         except Exception as e:
-            print(f"⚠️  Could not load music track: {e}. Skipping background music.")
+            print(f"[Video] Could not load music track: {e}. Skipping background music.")
+
 
     # Combine audio tracks
     if audio_tracks:
@@ -174,5 +176,6 @@ def assemble_video(
         narration_audio.close()
     video.close()
 
-    print(f"✅ Video assembled: {output_path}")
+    print(f"[Video] Video assembled: {output_path}")
+
     return output_path

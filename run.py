@@ -22,10 +22,11 @@ if os.name == 'nt':
             dll_path = os.path.join(torch_lib, dll)
             if os.path.exists(dll_path):
                 try:
-                    print(f"🔧 Forcing DLL: {dll_path}")
+                    print(f"[RUN] Forcing DLL: {dll_path}")
                     ctypes.CDLL(dll_path)
                 except Exception as e:
-                    print(f"⚠️ DLL Load Warning ({dll}): {e}")
+                    print(f"[WARN] DLL Load Warning ({dll}): {e}")
+
 
 # ---------------------------------------------------------------------------
 # Environment Setup

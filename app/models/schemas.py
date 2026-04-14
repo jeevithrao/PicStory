@@ -127,6 +127,8 @@ class StatusResponse(BaseModel):
     project_id: str
     status:     str
     message:    Optional[str] = None
+    social_kit: Optional[SocialResponse] = None
+
 
 
 # ---------------------------------------------------------------------------

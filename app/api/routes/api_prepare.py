@@ -89,7 +89,7 @@ async def prepare(
                     image_paths, language="en", context=zip_desc
                 )
             except Exception as e:
-                print(f"⚠️ vision_caption failed in ZIP mode: {e}. Using generic captions.")
+                print(f"[Prepare] vision_caption failed in ZIP mode: {e}. Using generic captions.")
                 captions_en = [f"Photo {i+1} of the story" for i in range(len(filenames))]
 
             # 2. If target language is not English, translate them
@@ -98,7 +98,8 @@ async def prepare(
                 try:
                     captions_translated = translate_batch(captions_en, language_code)
                 except Exception as e:
-                    print(f"⚠️ translate_batch failed in ZIP mode: {e}. Using English fallbacks.")
+                    print(f"[Prepare] translate_batch failed in ZIP mode: {e}. Using English fallbacks.")
+
                     captions_translated = captions_en
             else:
                 captions_translated = captions_en
@@ -114,6 +115,10 @@ async def prepare(
             ]
             db_service.save_captions(project_id, caption_data)
             db_service.update_project_status(project_id, "captioned")
+
+            # --- AI Music Recommendation ---
+            from ai.audio import recommend_music_vibe
+            recommended_vibe = recommend_music_vibe(zip_desc, captions_en)
 
             # Build response: image URLs paired with their captions
             image_urls = [
@@ -132,7 +137,9 @@ async def prepare(
                 "context": zip_desc,
                 "language": language,
                 "audio": audio,
+                "recommended_audio": recommended_vibe,
             }
+
 
 
         else:

@@ -295,8 +295,33 @@
     .video-container video { position: absolute; inset: 0; width: 100%; height: 100%; border: none; border-radius: 18px; }
     .result-actions { display: flex; gap: 14px; justify-content: center; padding: 0 16px 48px; max-width: 480px; margin: 0 auto; }
     .result-actions button { flex: 1; }
+    
+    /* ═══ SOCIAL KIT ═══ */
+    .social-kit-box {
+      max-width: 520px; margin: -20px auto 40px; padding: 24px;
+      background: rgba(255,255,255,0.04);
+      border: 1.5px dashed var(--accent-bright); border-radius: 18px;
+      backdrop-filter: blur(10px);
+    }
+    .social-kit-title {
+      font-family: 'Cinzel', serif; font-size: .85rem; font-weight: 700;
+      color: var(--accent-bright); text-transform: uppercase; letter-spacing: 1px;
+      margin-bottom: 12px; display: flex; align-items: center; gap: 8px;
+    }
+    .social-kit-content {
+      font-size: .88rem; color: var(--text-main); line-height: 1.6;
+      margin-bottom: 16px; word-break: break-word;
+    }
+    .copy-btn {
+      width: 100%; padding: 12px; border-radius: 10px;
+      background: rgba(168,85,247,0.15); border: 1px solid var(--accent);
+      color: var(--accent-glow); font-size: .75rem; font-weight: 600;
+      cursor: pointer; transition: all .2s; display: flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .copy-btn:hover { background: rgba(168,85,247,0.25); transform: scale(1.02); }
 
     /* ═══ LOADER ═══ */
+
     .loader-overlay {
       position: fixed; inset: 0; z-index: 200;
       background: rgba(10,5,32,.92);
@@ -472,7 +497,17 @@
   <div class="result-actions">
     <button class="action-btn btn-primary fade-up delay-3" id="downloadFinalBtn">⬇ &nbsp;Download Video</button>
   </div>
+
+  <div class="social-kit-box fade-up delay-4" id="socialKitBox" style="display:none;">
+    <div class="social-kit-title">📱 Social Media Kit</div>
+    <div class="social-kit-content">
+      <p id="socialCaption" style="margin-bottom:12px;"></p>
+      <div id="socialHashtags" style="color:var(--accent-bright); font-weight:600; font-size:0.8rem;"></div>
+    </div>
+    <button class="copy-btn" id="copySocialBtn">📋 Copy Caption & Hashtags</button>
+  </div>
 </div>
+
 
 
 <!-- Loader -->
@@ -497,7 +532,10 @@
     editItems: [],   // [{url, caption}, ...]
     language: '',
     audio: '',
+    recommendedAudio: '', // AI chosen vibe
+    awarenessTopic: '',   // non-empty → Awareness Mode active
   };
+
 
   // ─── Page navigation ───
   function showPage(id) {
@@ -512,10 +550,26 @@
       const group = btn.dataset.group;
       document.querySelectorAll(`.pill[data-group="${group}"]`).forEach(b => b.classList.remove('selected'));
       btn.classList.add('selected');
-      if (group === 'lang')  state.selectedLanguage = btn.dataset.val;
-      if (group === 'audio') state.selectedAudio    = btn.dataset.val;
+      
+      if (group === 'lang') {
+        state.selectedLanguage = btn.dataset.val;
+      }
+      
+      if (group === 'audio') {
+        const safe_vibe = btn.dataset.val.toLowerCase().replace("/", "-").replace(/\s/g, "_");
+        state.selectedAudio = btn.dataset.val;
+        
+        // Play preview
+        const player = document.getElementById('previewPlayer');
+        if (player) {
+          player.src = `/static/previews/${safe_vibe}.wav`;
+          player.play().catch(e => console.warn("Preview playback failed:", e));
+        }
+      }
+
     });
   });
+
 
   // ─── ZIP input ───
   document.getElementById('zipInput').addEventListener('change', e => {
@@ -532,12 +586,19 @@
 
   // ─── Validation ───
   function validate() {
-    const isAwareness = state.zipDesc.trim().toLowerCase().startsWith('awareness:');
-    if (!state.zipFile && !isAwareness) {
-      showToast('📎 Please upload a ZIP file or type "Awareness: [topic]".', 'error');
+    if (!state.zipFile) {
+      showToast('📎 Please upload a ZIP file of your photos.', 'error');
       return false;
     }
-
+    // If context starts with "Awareness:" extract and validate the topic
+    const desc = state.zipDesc.trim();
+    if (desc.toLowerCase().startsWith('awareness:')) {
+      const topic = desc.substring(10).trim();
+      if (!topic) {
+        showToast('⚠️ Please enter a topic after "Awareness:" (e.g. "Awareness: Road Safety").', 'error');
+        return false;
+      }
+    }
     return true;
   }
 
@@ -548,22 +609,21 @@
 
     try {
       const fd = new FormData();
-      const isAwareness = state.zipDesc.trim().toLowerCase().startsWith('awareness:');
+      const desc = state.zipDesc.trim();
+      const isAwareness = desc.toLowerCase().startsWith('awareness:');
 
-      if (isAwareness) {
-        const prompt = state.zipDesc.trim().substring(10).trim();
-        fd.append('prompt', prompt);
-      } else {
-        if (state.zipFile) fd.append('zip', state.zipFile);
-        if (state.zipDesc) fd.append('zip_desc', state.zipDesc);
-      }
+      // Always upload the ZIP; awareness topic is stored separately for render time
+      fd.append('zip', state.zipFile);
+      if (desc && !isAwareness) fd.append('zip_desc', desc);
 
       fd.append('language', state.selectedLanguage);
       fd.append('audio',    state.selectedAudio);
 
+      // Store awareness topic in state for use during /api/render
+      state.awarenessTopic = isAwareness ? desc.substring(10).trim() : '';
+
       const res = await fetch('/api/prepare', { method: 'POST', body: fd });
       hideLoader();
-
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -577,14 +637,19 @@
         state.projectId  = data.projectId;
         state.editItems  = data.images.map(img => ({ url: img.url, caption: img.caption }));
         state.language   = data.language || state.selectedLanguage;
-        state.audio      = data.audio || state.selectedAudio;
+        state.audio      = data.recommended_audio || data.audio || state.selectedAudio;
+        state.recommendedAudio = data.recommended_audio;
         renderEditList();
+
         showPage('editPage');
-        showToast('✅ Images captioned! Review and edit before generating.', 'success');
+        if (state.awarenessTopic) {
+          showToast(`🎗️ Awareness Mode: "${state.awarenessTopic}" — fixed narration will be used.`, 'success');
+        } else {
+          showToast('✅ Images captioned! Review and edit before generating.', 'success');
+        }
 
       } else if (data.mode === 'prompt') {
-        showResultPage(data.videoUrl);
-        showToast('✅ Video ready for playback!', 'success');
+        showResultPage(data.videoUrl, data.socialKit);
       }
 
     } catch (err) {
@@ -600,35 +665,120 @@
     const list = document.getElementById('editList');
     list.innerHTML = '';
 
+    // Awareness Mode banner
+    if (state.awarenessTopic) {
+      const banner = document.createElement('div');
+      banner.style.cssText = 'background:linear-gradient(135deg,#1a3a2a,#0f2e1e);border:1px solid #2ecc71;border-radius:12px;padding:1rem 1.25rem;margin-bottom:1.2rem;color:#fff;font-size:0.88rem;line-height:1.6;';
+      banner.innerHTML = `
+        <div style="font-size:1rem;font-weight:700;margin-bottom:0.4rem;">🎗️ Awareness Mode — <span style="color:#2ecc71;">${state.awarenessTopic}</span></div>
+        <div style="color:#aaa;">The following fixed narration will be used as a <strong>single continuous voiceover</strong> across all images. Image captions are ignored.</div>
+        <div style="margin-top:0.6rem;padding:0.75rem;background:rgba(255,255,255,0.06);border-radius:8px;font-style:italic;color:#ddd;">
+          "Awareness isn't just about knowing — it's about acting. Today, we talk about <strong style="color:#2ecc71;">${state.awarenessTopic}</strong>. Many of us overlook it, ignore it, or think it won't affect us. But small actions can make a big difference. By staying informed, making better choices, and looking out for each other, we can create a safer and stronger community. Change starts with understanding — and understanding starts with awareness. Let's take a step today, because <strong style="color:#2ecc71;">${state.awarenessTopic}</strong> matters."
+        </div>`;
+      list.appendChild(banner);
+    }
+
+    // Music Selection Section (Step 4)
+    const musicBox = document.createElement('div');
+    musicBox.className = 'section-box fade-up delay-1';
+    musicBox.style.marginBottom = '24px';
+    
+    const vibes = [
+      "calm", "romantic", "rock", "happy", "sad", "motivational",
+      "cinematic", "hip-hop", "cultural", "electric", "lo-fi / chill", "emotional"
+    ];
+    let musicPillsHtml = vibes.map(v => {
+      const isSelected = state.audio.toLowerCase() === v.toLowerCase();
+      const isRecommended = state.recommendedAudio && state.recommendedAudio.toLowerCase() === v.toLowerCase();
+      
+      // Better labeling for special cases
+      let label = v.charAt(0).toUpperCase() + v.slice(1);
+      if (v === "hip-hop") label = "Hip-Hop";
+      if (v === "lo-fi / chill") label = "Lo-Fi / Chill";
+      
+      return `<button class="pill ${isSelected ? 'selected' : ''}" data-group="editAudio" data-val="${v}">
+                ${label}${isRecommended ? ' <span style="font-size:0.6rem;opacity:0.8;">(✨ AI Choice)</span>' : ''}
+              </button>`;
+    }).join('');
+
+
+    musicBox.innerHTML = `
+      <div class="section-box-title">Background Music Selection</div>
+      <div class="pill-grid" id="editAudioPills">${musicPillsHtml}</div>
+    `;
+    list.appendChild(musicBox);
+
+    // Re-attach listeners for new pills
+    setTimeout(() => {
+      document.querySelectorAll('.pill[data-group="editAudio"]').forEach(btn => {
+        btn.onclick = () => {
+          const vibe = btn.dataset.val;
+          const player = document.getElementById('previewPlayer');
+          
+          if (btn.classList.contains('selected') && !player.paused) {
+             // Already playing and clicked again -> toggle stop
+             player.pause();
+             player.currentTime = 0;
+             return;
+          }
+
+          document.querySelectorAll('.pill[data-group="editAudio"]').forEach(b => b.classList.remove('selected'));
+          btn.classList.add('selected');
+          state.audio = vibe;
+
+          // Play preview
+          const safe_vibe = vibe.toLowerCase().replace("/", "-").replace(/\s/g, "_");
+          player.src = `/static/previews/${safe_vibe}.wav`;
+          player.play().catch(e => {
+
+            console.warn("Preview playback failed (might still be generating):", e);
+            showToast("Generating preview... try again in a moment.", "info");
+          });
+        };
+      });
+    }, 0);
+
+
     state.editItems.forEach((item, idx) => {
+
       const row = document.createElement('div');
       row.className = 'edit-row';
       row.draggable = true;
       row.dataset.idx = idx;
 
+      // In Awareness Mode captions are ignored — show them greyed-out as read-only
+      const captionHtml = state.awarenessTopic
+        ? `<div class="edit-caption-label"><span>Caption #${idx + 1} <em style="font-size:0.72rem;color:var(--text-dim)">(ignored in Awareness Mode)</em></span></div>
+           <textarea class="edit-caption-textarea" data-idx="${idx}" style="opacity:0.4;pointer-events:none;" readonly>${item.caption}</textarea>`
+        : `<div class="edit-caption-label">
+             <span>Caption #${idx + 1}</span>
+             <button class="edit-delete-btn" title="Remove">✕</button>
+           </div>
+           <textarea class="edit-caption-textarea" data-idx="${idx}">${item.caption}</textarea>`;
+
       row.innerHTML = `
         <div class="edit-order-badge">${idx + 1}</div>
         <div class="edit-thumb"><img src="${item.url}" alt="Image ${idx + 1}"/></div>
-        <div class="edit-content">
-          <div class="edit-caption-label">
-            <span>Caption #${idx + 1}</span>
-            <button class="edit-delete-btn" title="Remove">✕</button>
-          </div>
-          <textarea class="edit-caption-textarea" data-idx="${idx}">${item.caption}</textarea>
-        </div>
+        <div class="edit-content">${captionHtml}</div>
       `;
 
-      // Caption editing
-      row.querySelector('.edit-caption-textarea').addEventListener('input', e => {
-        state.editItems[idx].caption = e.target.value;
-      });
+      // Caption editing (disabled in Awareness Mode)
+      const textarea = row.querySelector('.edit-caption-textarea');
+      if (textarea && !state.awarenessTopic) {
+        textarea.addEventListener('input', e => {
+          state.editItems[idx].caption = e.target.value;
+        });
+      }
 
-      // Delete
-      row.querySelector('.edit-delete-btn').addEventListener('click', e => {
-        e.stopPropagation();
-        state.editItems.splice(idx, 1);
-        renderEditList();
-      });
+      // Delete (only wired in normal mode)
+      const deleteBtn = row.querySelector('.edit-delete-btn');
+      if (deleteBtn) {
+        deleteBtn.addEventListener('click', e => {
+          e.stopPropagation();
+          state.editItems.splice(idx, 1);
+          renderEditList();
+        });
+      }
 
       // Drag events
       row.addEventListener('dragstart', e => {
@@ -661,18 +811,26 @@
       return;
     }
 
-    showLoader('Generating narration, music & video…');
+    const loaderMsg = state.awarenessTopic
+      ? `Generating awareness video for "${state.awarenessTopic}"…`
+      : 'Generating narration, music & video…';
+    showLoader(loaderMsg);
 
     try {
+      const payload = {
+        projectId: state.projectId,
+        images: state.editItems,  // [{url, caption}, ...]
+        language: state.language,
+        audio: state.audio,
+      };
+      if (state.awarenessTopic) {
+        payload.awareness_topic = state.awarenessTopic;
+      }
+
       const res = await fetch('/api/render', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          projectId: state.projectId,
-          images: state.editItems,  // [{url, caption}, ...]
-          language: state.language,
-          audio: state.audio,
-        }),
+        body: JSON.stringify(payload),
       });
       hideLoader();
 
@@ -683,8 +841,9 @@
       }
 
       const data = await res.json();
-      showResultPage(data.videoUrl);
+      showResultPage(data.videoUrl, data.socialKit);
       showToast('✅ Video ready for playback!', 'success');
+
 
     } catch (err) {
       hideLoader();
@@ -693,14 +852,28 @@
   }
 
   // ─── Show result ───
-  function showResultPage(videoUrl) {
+  function showResultPage(videoUrl, socialKit) {
     showPage('resultPage');
     const vid = document.getElementById('resultVideo');
     vid.src = videoUrl;
     document.getElementById('downloadFinalBtn').onclick = () => triggerDownload(videoUrl, 'picstory-video.mp4');
+
+    if (socialKit) {
+      document.getElementById('socialKitBox').style.display = 'block';
+      document.getElementById('socialCaption').textContent = socialKit.caption;
+      document.getElementById('socialHashtags').textContent = socialKit.hashtags.join(' ');
+      
+      document.getElementById('copySocialBtn').onclick = () => {
+        const text = `${socialKit.caption}\n\n${socialKit.hashtags.join(' ')}`;
+        navigator.clipboard.writeText(text);
+        showToast('📋 Copied to clipboard!', 'success');
+      };
+    }
+
     // Auto-download the video
     setTimeout(() => triggerDownload(videoUrl, 'picstory-video.mp4'), 800);
   }
+
 
   function triggerDownload(url, filename) {
     const a = document.createElement('a');
@@ -723,5 +896,7 @@
     toastTimer = setTimeout(() => t.classList.remove('show'), 3200);
   }
 </script>
+  <audio id="previewPlayer" style="display:none;"></audio>
 </body>
+
 </html>

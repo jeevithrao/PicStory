@@ -25,12 +25,15 @@ except ImportError:
     DEVICE = "cpu"
     DTYPE = None
 
-print(f"🖥️  Model device: {DEVICE}")
+print(f"[Model] Device: {DEVICE}")
+
 
 # Global model references (only one should be non-None at any time)
-_musicgen      = None   # MusicGen
-_indic_parler  = None   # Indic Parler-TTS
-_nllb_translator = None # NLLB-200-distilled-600M
+_musicgen         = None   # MusicGen
+_indic_parler     = None   # Indic Parler-TTS
+_nllb_translator  = None   # NLLB-200-distilled-600M
+_indic_translator = None   # IndicTrans2-EN-Indic-dist-200m
+
 
 
 def _clear_gpu():
@@ -61,7 +64,8 @@ def load_musicgen():
     model = MusicgenForConditionalGeneration.from_pretrained("facebook/musicgen-small")
     model = model.to(DEVICE)
     _musicgen = (model, processor)
-    print(f"✅ MusicGen loaded on {DEVICE.upper()}.")
+    print(f"[Model] MusicGen loaded on {DEVICE.upper()}.")
+
     return _musicgen
 
 
@@ -71,7 +75,8 @@ def unload_musicgen():
         del _musicgen
         _musicgen = None
         _clear_gpu()
-        print("🗑️  MusicGen unloaded.")
+        print("[Model] MusicGen unloaded.")
+
 
 
 # ---------------------------------------------------------------------------
@@ -98,7 +103,8 @@ def load_indic_parler_tts():
     description_tokenizer = AutoTokenizer.from_pretrained(model.config.text_encoder._name_or_path)
 
     _indic_parler = (model, prompt_tokenizer, description_tokenizer)
-    print(f"✅ Indic Parler-TTS loaded on {DEVICE.upper()}.")
+    print(f"[Model] Indic Parler-TTS loaded on {DEVICE.upper()}.")
+
     return _indic_parler
 
 
@@ -108,7 +114,8 @@ def unload_indic_parler_tts():
         del _indic_parler
         _indic_parler = None
         _clear_gpu()
-        print("🗑️  Indic Parler-TTS unloaded.")
+        print("[Model] Indic Parler-TTS unloaded.")
+
 
 
 # ---------------------------------------------------------------------------
@@ -133,17 +140,20 @@ def load_nllb_translator():
     model.eval()
 
     _nllb_translator = (model, tokenizer)
-    print(f"✅ NLLB-200 loaded on {DEVICE.upper()}.")
+    print(f"[Model] NLLB-200 loaded on {DEVICE.upper()}.")
+
     return _nllb_translator
 
 
 def unload_nllb_translator():
-    global _indic_translator
-    if _indic_translator is not None:
-        del _indic_translator
-        _indic_translator = None
+    global _nllb_translator
+    if _nllb_translator is not None:
+        del _nllb_translator
+        _nllb_translator = None
         _clear_gpu()
-        print("🗑️  IndicTrans2 unloaded.")
+        print("[Model] NLLB-200 unloaded.")
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -169,17 +179,20 @@ def load_indic_translator():
     model.eval()
 
     _indic_translator = (model, tokenizer)
-    print(f"✅ IndicTrans2 (200M) loaded on {DEVICE.upper()}.")
+    print(f"[Model] IndicTrans2 (200M) loaded on {DEVICE.upper()}.")
+
     return _indic_translator
 
 
 def unload_indic_translator():
-    global _nllb_translator
-    if _nllb_translator is not None:
-        del _nllb_translator
-        _nllb_translator = None
+    global _indic_translator
+    if _indic_translator is not None:
+        del _indic_translator
+        _indic_translator = None
         _clear_gpu()
-        print("🗑️  NLLB-200 unloaded.")
+        print("[Model] IndicTrans2 unloaded.")
+
+
 
 
 # ---------------------------------------------------------------------------
@@ -205,7 +218,8 @@ def load_indic_translator():
     model.eval()
 
     _nllb_translator = (model, tokenizer)
-    print(f"✅ NLLB-200 (600M) loaded on {DEVICE.upper()}.")
+    print(f"[Model] NLLB-200 (600M) loaded on {DEVICE.upper()}.")
+
     return _nllb_translator
 
 
@@ -215,7 +229,8 @@ def unload_nllb_translator():
         del _nllb_translator
         _nllb_translator = None
         _clear_gpu()
-        print("🗑️  NLLB-200 unloaded.")
+        print("[Model] NLLB-200 unloaded.")
+
 
 
 # ---------------------------------------------------------------------------

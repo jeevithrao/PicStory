@@ -1,4 +1,9 @@
-<<<<<<< HEAD
+# PicStory: AI Story Video Generator
+
+AI Story Video Generator is a web-based application that automatically transforms a collection of photos or videos into a narrated story video. The system uses artificial intelligence to analyze uploaded media, generate meaningful descriptions, create a coherent storyline, convert the story into voice narration, and produce a final shareable video.
+
+---
+
 # PicStory Backend — Setup & Run Guide
 
 **Team T1 | COMP301 | Project ID: Sec2_P8 | Backend Owner: Jeevith**
@@ -245,7 +250,3 @@ git push
 ```
 
 The `.gitignore` already excludes `.env`, `uploads/`, `outputs/`, and `venv/`.
-=======
-# PicStory
-AI Story Video Generator is a web-based application that automatically transforms a collection of photos or videos into a narrated story video. The system uses artificial intelligence to analyze uploaded media, generate meaningful descriptions, create a coherent storyline, convert the story into voice narration, and produce a final shareable video.
->>>>>>> e0a7bec62cfa75bb2541badccd194ff48b1d49d5
