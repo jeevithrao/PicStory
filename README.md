@@ -6,7 +6,7 @@ AI Story Video Generator is a web-based application that automatically transform
 
 # PicStory Backend — Setup & Run Guide
 
-**Team T1 | COMP301 | Project ID: Sec2_P8 | Backend Owner: Jeevith**
+**Team T1 | COMP301 | Project ID: Sec2_P8**
 
 ---
 
